@@ -77,30 +77,37 @@ static uint8_t simple_checksum(const uint8_t *buf, size_t len) {
 
 bool TMC2209Driver::writeRegister(uint8_t motor_index, uint8_t reg, uint32_t value) {
     if (!uart_) return false;
-    selectDriver(motor_index);
-    uint8_t pkt[1 + 1 + 1 + 4 + 1];
-    size_t p = 0;
-    pkt[p++] = 0x55; // start
-    pkt[p++] = 1; // cmd=write
-    pkt[p++] = reg;
-    // little-endian
-    pkt[p++] = (uint8_t)(value & 0xFF);
-    pkt[p++] = (uint8_t)((value >> 8) & 0xFF);
-    pkt[p++] = (uint8_t)((value >> 16) & 0xFF);
-    pkt[p++] = (uint8_t)((value >> 24) & 0xFF);
-    pkt[p++] = simple_checksum(pkt, p);
-    uart_->write(pkt, p+1);
-    uart_->flush();
-    // wait for ack (not real TMC behavior) - read one byte
-    unsigned long start = millis();
+    const int MAX_TRIES = 3;
     bool ok = false;
-    while (millis() - start < 50) {
-        if (uart_->available()) {
-            int b = uart_->read();
-            if (b == 0x06) { ok = true; break; } // ACK
+    for (int attempt = 0; attempt < MAX_TRIES; ++attempt) {
+        selectDriver(motor_index);
+        uint8_t pkt[1 + 1 + 1 + 4 + 1];
+        size_t p = 0;
+        pkt[p++] = 0x55; // start
+        pkt[p++] = 1; // cmd=write
+        pkt[p++] = reg;
+        // little-endian
+        pkt[p++] = (uint8_t)(value & 0xFF);
+        pkt[p++] = (uint8_t)((value >> 8) & 0xFF);
+        pkt[p++] = (uint8_t)((value >> 16) & 0xFF);
+        pkt[p++] = (uint8_t)((value >> 24) & 0xFF);
+        pkt[p++] = simple_checksum(pkt, p);
+        uart_->write(pkt, p+1);
+        uart_->flush();
+        // wait for ack (not real TMC behavior) - read one byte
+        unsigned long start = millis();
+        bool heard = false;
+        while (millis() - start < 75) {
+            if (uart_->available()) {
+                int b = uart_->read();
+                if (b == 0x06) { heard = true; break; } // ACK
+            }
         }
+        deselectAll();
+        if (heard) { ok = true; break; }
+        // retry after short delay
+        delay(10);
     }
-    deselectAll();
     return ok;
 }
 
@@ -126,9 +133,24 @@ bool TMC2209Driver::readRegister(uint8_t motor_index, uint8_t reg, uint32_t &val
     deselectAll();
     if (got >= 6 && resp[0] == 0x55 && resp[1] == 0x02 && resp[2] == reg) {
         // resp layout: [0x55][0x02][reg][4 data][chk]
+        if (got < 8) return false;
         uint32_t v = (uint32_t)resp[3] | ((uint32_t)resp[4] << 8) | ((uint32_t)resp[5] << 16) | ((uint32_t)resp[6] << 24);
+        // basic checksum validation
+        uint8_t chk = resp[7];
+        uint8_t sum = simple_checksum(resp, 7);
+        if (chk != sum) return false;
         value = v;
         return true;
     }
     return false;
+}
+
+void TMC2209Driver::configureAllMotors() {
+    for (uint8_t i = 0; i < TMC2209_NUM_DRIVERS; ++i) {
+        configureMotor(i);
+    }
+}
+
+void TMC2209Driver::setBaud(unsigned long baud) {
+    if (uart_) uart_->updateBaudRate(baud);
 }

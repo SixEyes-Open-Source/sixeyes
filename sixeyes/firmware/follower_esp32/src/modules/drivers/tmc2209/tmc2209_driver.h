@@ -12,6 +12,10 @@ public:
     void configureMotor(uint8_t motor_index);
     bool readDiagnostics(uint8_t motor_index, uint32_t &diag);
     void setCurrent(uint8_t motor_index, uint16_t milliamps);
+    // Convenience: configure all detected motors with safe defaults
+    void configureAllMotors();
+    // Set UART baud used for drivers
+    void setBaud(unsigned long baud);
 
     // Low-level register access (placeholders for real TMC2209 protocol)
     // NOTE: These use a simple framing for initial testing. Replace with
