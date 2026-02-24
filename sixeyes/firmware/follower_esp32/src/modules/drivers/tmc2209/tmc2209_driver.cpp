@@ -2,6 +2,7 @@
 #include "tmc2209_config.h"
 #include <Arduino.h>
 #include <cstring>
+#include <TMCStepper.h>
 
 TMC2209Driver &TMC2209Driver::instance() {
     static TMC2209Driver inst;
@@ -17,8 +18,22 @@ void TMC2209Driver::init(HardwareSerial &uart) {
         pinMode(TMC2209_PDN_PINS[i], OUTPUT);
         digitalWrite(TMC2209_PDN_PINS[i], HIGH);
     }
+    // Start UART for TMC communication. Default safe baud.
     uart_->begin(115200);
-    Serial.println("TMC2209Driver: init complete (PDN_UART placeholder)");
+
+    // Create TMCStepper wrappers for each motor (they will use the same UART,
+    // PDN selection makes only one active at a time).
+    for (uint8_t i = 0; i < TMC2209_NUM_DRIVERS; ++i) {
+        drivers[i] = new TMC2209Stepper(uart_, TMC2209_R_SENSE, 0);
+        if (drivers[i]) {
+            drivers[i]->begin();
+            // Use sensible defaults; driver configuration can be tuned later
+            drivers[i]->toff(3);
+            drivers[i]->rms_current(600); // conservative default (mA)
+        }
+    }
+
+    Serial.println("TMC2209Driver: init complete (using TMCStepper)");
 }
 
 void TMC2209Driver::selectDriver(uint8_t motor_index) {
@@ -55,15 +70,15 @@ bool TMC2209Driver::readDiagnostics(uint8_t motor_index, uint32_t &diag) {
 }
 
 void TMC2209Driver::setCurrent(uint8_t motor_index, uint16_t milliamps) {
-    // Placeholder mapping: convert mA to register value (fake mapping)
-    uint32_t regval = (uint32_t)milliamps; // TODO: convert to driver current register units
-    bool ok = writeRegister(motor_index, 0x10, regval);
+    if (motor_index >= TMC2209_NUM_DRIVERS) return;
+    if (!drivers[motor_index]) return;
+    // Use TMCStepper API to set RMS current (library handles internal scaling)
+    drivers[motor_index]->rms_current(milliamps);
     Serial.print("TMC2209Driver: setCurrent ");
     Serial.print(motor_index);
     Serial.print(" -> ");
     Serial.print(milliamps);
-    Serial.print(" mA : ");
-    Serial.println(ok ? "OK" : "ERR");
+    Serial.println(" mA (requested)");
 }
 
 // Simple framing for initial testing only.
@@ -76,72 +91,18 @@ static uint8_t simple_checksum(const uint8_t *buf, size_t len) {
 }
 
 bool TMC2209Driver::writeRegister(uint8_t motor_index, uint8_t reg, uint32_t value) {
-    if (!uart_) return false;
-    const int MAX_TRIES = 3;
-    bool ok = false;
-    for (int attempt = 0; attempt < MAX_TRIES; ++attempt) {
-        selectDriver(motor_index);
-        uint8_t pkt[1 + 1 + 1 + 4 + 1];
-        size_t p = 0;
-        pkt[p++] = 0x55; // start
-        pkt[p++] = 1; // cmd=write
-        pkt[p++] = reg;
-        // little-endian
-        pkt[p++] = (uint8_t)(value & 0xFF);
-        pkt[p++] = (uint8_t)((value >> 8) & 0xFF);
-        pkt[p++] = (uint8_t)((value >> 16) & 0xFF);
-        pkt[p++] = (uint8_t)((value >> 24) & 0xFF);
-        pkt[p++] = simple_checksum(pkt, p);
-        uart_->write(pkt, p+1);
-        uart_->flush();
-        // wait for ack (not real TMC behavior) - read one byte
-        unsigned long start = millis();
-        bool heard = false;
-        while (millis() - start < 75) {
-            if (uart_->available()) {
-                int b = uart_->read();
-                if (b == 0x06) { heard = true; break; } // ACK
-            }
-        }
-        deselectAll();
-        if (heard) { ok = true; break; }
-        // retry after short delay
-        delay(10);
-    }
-    return ok;
+    // Generic register write wrapper not implemented for all addresses.
+    // Use higher-level APIs (e.g. setCurrent) where possible. Return false
+    // to indicate not supported for arbitrary registers.
+    (void)motor_index; (void)reg; (void)value;
+    return false;
 }
 
 bool TMC2209Driver::readRegister(uint8_t motor_index, uint8_t reg, uint32_t &value, unsigned long timeout_ms) {
-    if (!uart_) return false;
-    selectDriver(motor_index);
-    uint8_t pkt[1 + 1 + 1 + 1];
-    size_t p = 0;
-    pkt[p++] = 0x55;
-    pkt[p++] = 2; // cmd=read
-    pkt[p++] = reg;
-    pkt[p++] = simple_checksum(pkt, p);
-    uart_->write(pkt, p);
-    uart_->flush();
-    unsigned long start = millis();
-    uint8_t resp[6];
-    size_t got = 0;
-    while (millis() - start < timeout_ms && got < sizeof(resp)) {
-        while (uart_->available() && got < sizeof(resp)) {
-            resp[got++] = (uint8_t)uart_->read();
-        }
-    }
-    deselectAll();
-    if (got >= 6 && resp[0] == 0x55 && resp[1] == 0x02 && resp[2] == reg) {
-        // resp layout: [0x55][0x02][reg][4 data][chk]
-        if (got < 8) return false;
-        uint32_t v = (uint32_t)resp[3] | ((uint32_t)resp[4] << 8) | ((uint32_t)resp[5] << 16) | ((uint32_t)resp[6] << 24);
-        // basic checksum validation
-        uint8_t chk = resp[7];
-        uint8_t sum = simple_checksum(resp, 7);
-        if (chk != sum) return false;
-        value = v;
-        return true;
-    }
+    // Generic register read wrapper not implemented. Provide accessors
+    // via specific methods (e.g. DRV_STATUS(), IOIN()) when needed.
+    (void)motor_index; (void)reg; (void)timeout_ms;
+    value = 0;
     return false;
 }
 

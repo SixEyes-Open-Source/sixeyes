@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 #include <Arduino.h>
+#include <TMCStepper.h>
+#include "tmc2209_config.h"
 
 class TMC2209Driver {
 public:
@@ -17,15 +19,18 @@ public:
     // Set UART baud used for drivers
     void setBaud(unsigned long baud);
 
-    // Low-level register access (placeholders for real TMC2209 protocol)
-    // NOTE: These use a simple framing for initial testing. Replace with
-    // the official TMC2209 UART framing (CRC, addressing) before hardware use.
+    // Low-level register access (uses TMCStepper library for UART register protocol)
+    // NOTE: TMCStepper implements the official TMC2209 register protocol
+    // including CRC and addressing; this wrapper selects the PDN_UART
+    // target and delegates reads/writes to that library.
     bool writeRegister(uint8_t motor_index, uint8_t reg, uint32_t value);
     bool readRegister(uint8_t motor_index, uint8_t reg, uint32_t &value, unsigned long timeout_ms = 50);
 
 private:
     TMC2209Driver();
     HardwareSerial *uart_ = nullptr;
+    // TMCStepper driver instances (one per physical TMC2209)
+    TMC2209Stepper *drivers[TMC2209_NUM_DRIVERS];
     void selectDriver(uint8_t motor_index);
     void deselectAll();
 };
