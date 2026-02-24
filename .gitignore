@@ -1,0 +1,31 @@
+# Visual Studio Code
+.vscode/
+
+# PlatformIO
+.pio/
+.piolibdeps/
+.pioenvs/
+/.vscode/*
+
+# Build artifacts
+build/
+dist/
+*.elf
+*.bin
+*.hex
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+
+# ROS2 build artifacts
+/install/
+/build/
+/log/
+
+# Misc
+.DS_Store
+Thumbs.db
