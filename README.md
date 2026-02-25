@@ -54,9 +54,29 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 | Mode | Purpose | Data Path | Status |
 |------|---------|-----------|--------|
 | **VLA Inference** | Execute AI-planned tasks from laptop/ROS2 | Laptop ROS2 → Follower ESP32 | ✅ Active |
-| **Teleoperation** | Stream human-driven leader joint states for mirroring/data collection | Leader ESP32 → Laptop/Follower | 🚧 Phase 2 started |
+| **Teleoperation** | Stream human-driven leader joint states for mirroring/data collection | Leader ESP32 → Laptop/Follower | 🚧 Phase 3 in progress |
 
-Current Phase 2 implementation includes `leader_esp32` joint-state streaming at 100 Hz using `JOINT_STATE` JSON messages.
+Current implementation includes `leader_esp32` JOINT_STATE streaming at 100 Hz, laptop bridge forwarding, and follower TELEMETRY_STATE stub responses.
+
+### Choose Your Mode First (Important)
+
+Before building/flashing, choose one workflow and set follower mode accordingly:
+
+1. **VLA Inference workflow**
+    - Set in `sixeyes/firmware/follower_esp32/platformio.ini`:
+       ```ini
+       -DOPERATION_MODE=1
+       ```
+    - Flash only `follower_esp32`
+    - Run ROS2 safety + command nodes from laptop
+
+2. **Teleoperation workflow**
+    - Set in `sixeyes/firmware/follower_esp32/platformio.ini`:
+       ```ini
+       -DOPERATION_MODE=2
+       ```
+    - Flash both `leader_esp32` and `follower_esp32`
+    - Run laptop bridge (`sixeyes/tools/teleoperation_bridge.py`)
 
 ## Repository Structure
 
@@ -113,6 +133,15 @@ sixeyes/
 
 ## Getting Started (5 minutes)
 
+### Quick Mode Setup
+
+```bash
+# Follower mode switch (edit before build)
+cd sixeyes/firmware/follower_esp32
+# platformio.ini -> -DOPERATION_MODE=1  (VLA)
+# platformio.ini -> -DOPERATION_MODE=2  (Teleoperation)
+```
+
 ### For Firmware Developers
 
 1. **Clone the repository**:
@@ -151,17 +180,32 @@ sixeyes/
    pio run
    ```
 
-2. **Flash leader ESP32**:
+2. **Build follower in teleoperation mode**:
    ```bash
+   cd ../follower_esp32
+   # Ensure platformio.ini has: -DOPERATION_MODE=2
+   pio run
+   ```
+
+3. **Flash leader ESP32**:
+   ```bash
+   cd ../leader_esp32
    pio run -t upload
    ```
 
-3. **Monitor JOINT_STATE output (100 Hz)**:
+4. **Flash follower ESP32**:
    ```bash
+   cd ../follower_esp32
+   pio run -t upload
+   ```
+
+5. **Monitor JOINT_STATE output (100 Hz)**:
+   ```bash
+   cd ../leader_esp32
    pio device monitor
    ```
 
-4. **Run laptop bridge (Phase 3)**:
+6. **Run laptop bridge (Phase 3)**:
    ```bash
    cd sixeyes/tools
    python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
