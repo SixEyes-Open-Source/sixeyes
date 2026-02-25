@@ -735,8 +735,9 @@ python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-fil
 Behavior:
 - Reads line-delimited JSON from leader serial.
 - Forwards validated `JOINT_STATE` payloads to follower serial.
+- Receives `TELEMETRY_STATE` from follower in parallel.
 - Drops malformed packets and tracks counters.
-- Optionally writes forwarded payloads to JSONL for dataset collection.
+- Optionally writes both directions to JSONL for dataset collection.
 
 ---
 

@@ -30,6 +30,8 @@ class BridgeStats:
     packets_forwarded: int = 0
     packets_dropped: int = 0
     parse_errors: int = 0
+    telemetry_in: int = 0
+    telemetry_parse_errors: int = 0
     last_seq: Optional[int] = None
 
 
@@ -54,6 +56,7 @@ class TeleoperationBridge:
         self.stats = BridgeStats()
         self.lock = threading.Lock()
         self.forward_thread: Optional[threading.Thread] = None
+        self.telemetry_thread: Optional[threading.Thread] = None
 
     def connect(self) -> bool:
         try:
@@ -106,6 +109,9 @@ class TeleoperationBridge:
         self.running = True
         self.forward_thread = threading.Thread(target=self._forward_loop, daemon=True)
         self.forward_thread.start()
+
+        self.telemetry_thread = threading.Thread(target=self._telemetry_loop, daemon=True)
+        self.telemetry_thread.start()
         print("[INFO] Teleoperation bridge started")
         return True
 
@@ -113,6 +119,8 @@ class TeleoperationBridge:
         self.running = False
         if self.forward_thread:
             self.forward_thread.join(timeout=2.0)
+        if self.telemetry_thread:
+            self.telemetry_thread.join(timeout=2.0)
         self.disconnect()
 
     def _forward_loop(self) -> None:
@@ -146,6 +154,7 @@ class TeleoperationBridge:
                 if self.log_handle:
                     log_record = {
                         "bridge_ts": int(time.time() * 1000),
+                        "direction": "leader_to_follower",
                         "payload": payload,
                     }
                     self.log_handle.write(json.dumps(log_record) + "\n")
@@ -159,6 +168,57 @@ class TeleoperationBridge:
                 print(f"[ERROR] Unexpected forwarding error: {error}")
                 with self.lock:
                     self.stats.packets_dropped += 1
+
+    def _telemetry_loop(self) -> None:
+        assert self.follower_serial is not None
+
+        while self.running:
+            try:
+                raw_line = self.follower_serial.readline()
+                if not raw_line:
+                    continue
+
+                line = raw_line.decode("utf-8", errors="ignore").strip()
+                if not line:
+                    continue
+
+                payload = self._parse_telemetry(line)
+                if payload is None:
+                    continue
+
+                print(f"[TELEMETRY] seq={payload.get('seq', '?')} ts={payload.get('ts', '?')}")
+
+                if self.log_handle:
+                    log_record = {
+                        "bridge_ts": int(time.time() * 1000),
+                        "direction": "follower_to_laptop",
+                        "payload": payload,
+                    }
+                    self.log_handle.write(json.dumps(log_record) + "\n")
+                    self.log_handle.flush()
+
+            except serial.SerialException as error:
+                print(f"[ERROR] Telemetry receive failed: {error}")
+                self.running = False
+                break
+            except Exception as error:
+                print(f"[ERROR] Unexpected telemetry error: {error}")
+
+    def _parse_telemetry(self, line: str) -> Optional[dict]:
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            with self.lock:
+                self.stats.telemetry_parse_errors += 1
+            return None
+
+        if payload.get("cmd") != "TELEMETRY_STATE":
+            return None
+
+        with self.lock:
+            self.stats.telemetry_in += 1
+
+        return payload
 
     def _parse_and_validate(self, line: str) -> Optional[dict]:
         try:
@@ -196,6 +256,8 @@ class TeleoperationBridge:
             print(f"  Packets forwarded: {self.stats.packets_forwarded}")
             print(f"  Packets dropped:   {self.stats.packets_dropped}")
             print(f"  Parse errors:      {self.stats.parse_errors}")
+            print(f"  Telemetry in:      {self.stats.telemetry_in}")
+            print(f"  Telemetry parse errors: {self.stats.telemetry_parse_errors}")
             print(f"  Last sequence:     {self.stats.last_seq}")
             print()
 
