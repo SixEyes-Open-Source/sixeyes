@@ -1,5 +1,7 @@
 #include "safety_task.h"
 #include "heartbeat_monitor.h"
+#include "heartbeat_receiver.h"
+#include "heartbeat_transmitter.h"
 #include "fault_manager.h"
 #include "modules/hal/gpio.h"
 #include "modules/config/board_config.h"
@@ -12,7 +14,9 @@ SafetyTask &SafetyTask::instance() {
 
 SafetyTask::SafetyTask() {}
 
-void SafetyTask::init() {
+void SafetyTask::init(HardwareSerial *uart) {
+    uart_ = uart;
+    
     Serial.println("SafetyTask: initialized");
     Serial.println("  - Heartbeat timeout: 500 ms");
     Serial.println("  - Motors disabled by default");
@@ -22,6 +26,14 @@ void SafetyTask::init() {
     HAL_GPIO::init();
     FaultManager::instance().init();
     HeartbeatMonitor::instance().init(HEARTBEAT_TIMEOUT_MS);
+    
+    // Initialize ROS2 heartbeat bridge if UART available
+    if (uart_) {
+        SafetyNodeBridge::instance().init(*uart_);
+        Serial.println("  - ROS2 heartbeat bridge: ENABLED");
+    } else {
+        Serial.println("  - ROS2 heartbeat bridge: DISABLED (no UART)");
+    }
     
     // Motors start disabled
     motors_enabled_ = false;
@@ -38,11 +50,25 @@ void SafetyTask::update() {
     }
     last_check_ms_ = now_ms;
     
+    // Update ROS2 heartbeat bridge (receives & transmits heartbeats)
+    if (uart_) {
+        // The bridge will update both receiver and transmitter in one call
+        SafetyNodeBridge::instance().update(
+            FaultManager::instance().hasFault(),
+            motors_enabled_
+        );
+    }
+    
     // Run heartbeat monitor check
     HeartbeatMonitor::instance().check();
     
     // Determine if heartbeat is healthy
+    // Priority: ROS2 heartbeat feedback > internal heartbeat
     bool heartbeat_ok = HeartbeatMonitor::instance().isHealthy();
+    if (uart_) {
+        // If ROS2 bridge is active, use its connectivity state
+        heartbeat_ok = heartbeat_ok && SafetyNodeBridge::instance().isROS2Alive();
+    }
     
     // Fault logic: raise HEARTBEAT_TIMEOUT if heartbeat lost
     if (!heartbeat_ok && !FaultManager::instance().hasFault()) {
@@ -53,6 +79,7 @@ void SafetyTask::update() {
     // EN pin control: motors can only run if:
     // 1. No fault is present
     // 2. User has requested enable (via setAbsoluteTargets from motor_controller)
+    // 3. Heartbeat is healthy (includes ROS2 connectivity if bridge enabled)
     bool safe_to_operate = !FaultManager::instance().hasFault() && heartbeat_ok;
     bool should_enable = safe_to_operate && user_requested_enable_;
     
@@ -76,4 +103,12 @@ void SafetyTask::clearFault() {
 bool SafetyTask::isSafeToOperate() const {
     return !FaultManager::instance().hasFault() && 
            HeartbeatMonitor::instance().isHealthy();
+}
+
+bool SafetyTask::isROS2Connected() const {
+    // Returns ROS2 connectivity status only if bridge is initialized
+    if (uart_) {
+        return SafetyNodeBridge::instance().isROS2Alive();
+    }
+    return false;
 }

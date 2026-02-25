@@ -72,9 +72,9 @@ void ServoManager::setPWM(uint8_t servo_index, uint16_t micros) {
     // Convert microseconds to LEDC duty cycle
     // PWM period = 20 ms = 20000 µs
     // duty = (micros / 20000) * 65535
-    // For 50 Hz, a 1500 µs pulse = 7.5% duty cycle
     uint32_t duty = (micros * 65535UL) / 20000UL;
-    duty = std::min(65535UL, std::max(0UL, duty));
+    if (duty > 65535U) duty = 65535U;
+    else if (duty < 0U) duty = 0U;
     
     ledcWrite(PWM_CHANNEL_BASE + servo_index, duty);
     pulse_widths_us_[servo_index] = micros;

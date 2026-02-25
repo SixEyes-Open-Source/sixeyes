@@ -21,8 +21,10 @@ MotorController::MotorController() {
 
 void MotorController::init() {
     Serial.println("MotorController: init with closed-loop control and interpolation");
-    // Timer initialization would go here (one-time setup)
-    // For now, we rely on the main control loop calling update() at CONTROL_LOOP_HZ
+    Serial.println("  - PID gains: Kp=2.0, Ki=0.05, Kd=0.1");
+    Serial.println("  - Max velocity: 45.0 deg/sec");
+    Serial.println("  - Interpolation: 1.0 sec S-curve");
+    Serial.println("  - Update frequency: controlled by MotorControlScheduler");
 }
 
 void MotorController::setAbsoluteTargets(const std::array<float, NUM_STEPPERS> &targets) {
