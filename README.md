@@ -161,6 +161,12 @@ sixeyes/
    pio device monitor
    ```
 
+4. **Run laptop bridge (Phase 3)**:
+   ```bash
+   cd sixeyes/tools
+   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
+   ```
+
 ⏭️ **Next**: Read [Teleoperation Mode Architecture](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 
 ### For Hardware Assembly

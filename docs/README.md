@@ -17,7 +17,8 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
 1. Read: [Teleoperation Mode Architecture](firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 2. Reference: [JSON Message Protocol](protocols/JSON_MESSAGE_PROTOCOL.md#teleoperation-streaming-messages-phase-2)
 3. Build: `sixeyes/firmware/leader_esp32` (joint-state streamer)
-4. Validate: `JOINT_STATE` stream at 100 Hz from serial monitor
+4. Run bridge: `python sixeyes/tools/teleoperation_bridge.py --leader-port COM5 --follower-port COM6`
+5. Validate: `JOINT_STATE` forwarding + optional JSONL logging
 
 ### 🔧 Hardware Integrators
 1. Gather: [Parts List](hardware/WIRING_AND_ASSEMBLY.md#parts-list)

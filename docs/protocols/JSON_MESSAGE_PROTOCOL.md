@@ -725,6 +725,19 @@ void handleFaultRecovery() {
 }
 ```
 
+### Example 4: Teleoperation Bridge (Leader → Follower)
+
+```bash
+cd sixeyes/tools
+python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-file teleop_session.jsonl
+```
+
+Behavior:
+- Reads line-delimited JSON from leader serial.
+- Forwards validated `JOINT_STATE` payloads to follower serial.
+- Drops malformed packets and tracks counters.
+- Optionally writes forwarded payloads to JSONL for dataset collection.
+
 ---
 
 ## Performance & Constraints
