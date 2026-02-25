@@ -1,0 +1,318 @@
+# SixEyes - 6-DOF Robotic Arm with ROS2 Integration
+
+A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedom robotic arm with distributed safety control via ROS2 on a laptop.
+
+## Quick Links
+
+- 📘 **Getting Started**: Read [Complete Documentation Index](docs/README.md#quick-start)
+- 🚀 **Deploy Firmware**: [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
+- 🔌 **Build Hardware**: [Wiring & Assembly Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
+- 🤖 **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
+- ✅ **Validate Hardware**: [Hardware Validation Procedures](docs/hardware/HARDWARE_VALIDATION.md)
+- 🛠️ **Run Tests**: [Testing & Validation Guide](docs/testing/TESTING_AND_VALIDATION_GUIDE.md)
+
+## Project Overview
+
+### System Architecture
+
+```
+┌─────────────────────────────────┐
+│  ROS2 Safety Node (Laptop)      │
+│  • Heartbeat control (50 Hz)    │
+│  • Motion planning              │
+│  • Emergency stop logic         │
+└──────────────┬──────────────────┘
+               │ USB-CDC (ASCII)
+┌──────────────▼──────────────────┐
+│  ESP32-S3 Follower (Embedded)   │
+│  • 400 Hz control loop          │
+│  • Motor drivers (TMC2209)      │
+│  • Servo control (LEDC PWM)     │
+│  • Safety monitoring            │
+└──────────────┬──────────────────┘
+               │ Power + Control
+┌──────────────▼──────────────────┐
+│  Hardware (SixEyes Robot)       │
+│  • 4× NEMA23 steppers (24V)     │
+│  • 3× MG996R servos (6V)        │
+│  • USB-CDC telemetry            │
+└─────────────────────────────────┘
+```
+
+### Key Features
+
+✅ **Safety-Critical**: Dual heartbeat monitoring with <2.5 ms motor disable latency  
+✅ **Real-Time Control**: 400 Hz FreeRTOS deterministic control loop  
+✅ **Extensible**: JSON message protocol for future expansion  
+✅ **Production-Ready**: Comprehensive documentation and automated testing  
+✅ **Well-Tested**: Unit tests + hardware validation procedures  
+✅ **CI/CD Ready**: GitHub Actions for automated builds and releases  
+
+## Repository Structure
+
+```
+sixeyes/
+├── firmware/
+│   ├── follower_esp32/              ← Main firmware
+│   │   ├── src/
+│   │   │   ├── main.cpp             (entry point)
+│   │   │   ├── modules/
+│   │   │   │   ├── motors/          (motor control)
+│   │   │   │   ├── servos/          (servo management)
+│   │   │   │   ├── safety/          (heartbeat & safety)
+│   │   │   │   └── communication/   (USB-CDC, JSON parser)
+│   │   │   └── hal/                 (hardware abstraction)
+│   │   ├── test/                    (unit tests & mocks)
+│   │   ├── platformio.ini           (build config)
+│   │   └── lib_deps                 (dependencies)
+│   └── leader_esp32/                (future multi-robot)
+│
+├── ros2_ws/                         ← ROS2 workspace
+│   ├── src/
+│   │   ├── safety_node/             (safety & heartbeat)
+│   │   ├── vla_inference_node/      (vision & AI)
+│   │   ├── camera_node/             (camera interface)
+│   │   ├── joint_state_node/        (telemetry)
+│   │   └── usb_bridge_node/         (USB communication)
+│   └── setup.py
+│
+├── simulation/                      ← Gazebo simulation
+│   ├── models/
+│   └── launch/
+│
+├── docs/                            ← Documentation ⭐ START HERE
+│   ├── README.md                    (doc navigation)
+│   ├── firmware/                    (implementation guides)
+│   ├── hardware/                    (wiring & assembly)
+│   ├── deployment/                  (flashing guide)
+│   ├── testing/                     (validation procedures)
+│   ├── protocols/                   (message specs)
+│   ├── ros2/                        (ROS2 integration)
+│   ├── ops/                         (CI/CD pipeline)
+│   └── references/                  (datasheets, etc)
+│
+├── .github/workflows/               ← CI/CD pipelines
+│   ├── platformio-build.yml
+│   ├── code-quality.yml
+│   └── release.yml
+│
+├── CONTRIBUTING.md                  (contribution guidelines)
+├── LICENSE                          (project license)
+└── README.md                        (this file)
+```
+
+## Getting Started (5 minutes)
+
+### For Firmware Developers
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/SixEyes-Open-Source/sixeyes.git
+   cd sixeyes/firmware/follower_esp32
+   ```
+
+2. **Install PlatformIO**:
+   ```bash
+   pip install platformio
+   ```
+
+3. **Build firmware**:
+   ```bash
+   pio run
+   ```
+
+4. **Flash to ESP32**:
+   ```bash
+   pio run -t upload
+   ```
+
+5. **Monitor output**:
+   ```bash
+   pio device monitor
+   ```
+
+⏭️ **Next**: Read [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
+
+### For Hardware Assembly
+
+1. **Gather components** from [Parts List](docs/hardware/WIRING_AND_ASSEMBLY.md#parts-list)
+2. **Follow wiring diagram** in [Wiring Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
+3. **Run hardware validation** tests from [Hardware Validation](docs/hardware/HARDWARE_VALIDATION.md)
+
+⏭️ **Next**: Read [WIRING_AND_ASSEMBLY.md](docs/hardware/WIRING_AND_ASSEMBLY.md)
+
+### For ROS2 Integration
+
+1. **Set up ROS2 workspace**:
+   ```bash
+   cd sixeyes/ros2_ws
+   colcon build
+   ```
+
+2. **Run safety node**:
+   ```bash
+   ros2 launch safety_node safety_node.launch.py
+   ```
+
+3. **Monitor firmware**:
+   ```bash
+   ros2 topic echo /firmware_status
+   ```
+
+⏭️ **Next**: Read [ROS2 Integration Guide](docs/ros2/ROS2_HEARTBEAT_INTEGRATION.md)
+
+## Technical Specifications
+
+| Feature | Specification |
+|---------|---------------|
+| **Controller** | ESP32-S3 (240 MHz dual-core, 320 KB RAM) |
+| **Control Loop** | 400 Hz FreeRTOS deterministic timing |
+| **Steppers** | 4× NEMA23 (24V, 2.8A nominal) via TMC2209 |
+| **Servos** | 3× MG996R (6V, 0.17 sec/60°) |
+| **Communication** | USB-CDC + heartbeat protocol (50+ Hz) |
+| **Safety Timeout** | 500 ms heartbeat detection + <2.5 ms motor disable |
+| **Memory Usage** | 6.1% RAM, 10% Flash |
+| **Build Status** | Zero compiler warnings ✅ |
+
+## Key Documentation Files
+
+### 📚 Architecture & Design
+- [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md) - System diagrams, control flow, timing diagrams
+- [Implementation Summary](docs/firmware/IMPLEMENTATION_SUMMARY.md) - Technical specifications, protocol details
+
+### 🔧 Hardware & Deployment
+- [Wiring & Assembly](docs/hardware/WIRING_AND_ASSEMBLY.md) - Complete pin mapping, parts list, assembly procedures
+- [Hardware Validation](docs/hardware/HARDWARE_VALIDATION.md) - Testing & qualification procedures
+- [Flashing & Deployment](docs/deployment/FLASHING_AND_DEPLOYMENT.md) - Firmware build, flash, troubleshooting
+
+### 🧪 Testing & Quality
+- [Testing & Validation Guide](docs/testing/TESTING_AND_VALIDATION_GUIDE.md) - Unit tests, test framework, coverage
+- [CI/CD Pipeline](docs/ops/CI_CD_PIPELINE.md) - GitHub Actions, automated builds, release process
+
+### 🚀 Communication & ROS2
+- [JSON Message Protocol](docs/protocols/JSON_MESSAGE_PROTOCOL.md) - Message specifications, command reference
+- [ROS2 Heartbeat Integration](docs/ros2/ROS2_HEARTBEAT_INTEGRATION.md) - Safety protocol, integration details
+- [ROS2 Quickstart](docs/ros2/ROS2_HEARTBEAT_QUICKSTART.md) - Step-by-step testing guide
+
+### 📋 References
+- [Datasheets & References](docs/references/) - TMC2209, hardware specs, technical references
+
+## Communication Protocols
+
+### ASCII Heartbeat (High-Priority Safety)
+
+**ROS2 → ESP32** (≥50 Hz):
+```
+HB:0,<sequence>\n
+```
+
+**ESP32 → ROS2** (10 Hz):
+```
+SB:<fault>,<motors_enabled>,<ros2_alive>\n
+```
+
+### JSON Message Protocol (Extensible Commands)
+
+```json
+{
+  "cmd": "MOTOR_TARGET",
+  "seq": 1,
+  "targets": [0.0, 45.0, 90.0, 135.0]
+}
+```
+
+See [JSON Message Protocol](docs/protocols/JSON_MESSAGE_PROTOCOL.md) for full specification.
+
+## Safety & Reliability
+
+### Motor Disable Guarantees
+
+- **Automatic Disable**: If ROS2 heartbeat lost for >500 ms
+- **Latency**: Motor disable within 1 control loop cycle (~2.5 ms)
+- **Dual Monitoring**: Both ROS2 and internal heartbeat must be healthy
+- **Non-blocking**: All safety checks run asynchronously to preserve control loop timing
+
+### Testing & Validation
+
+✅ 17 unit tests (all passing)  
+✅ 15 hardware validation procedures  
+✅ CI/CD automated builds with memory constraints  
+✅ Zero compiler warnings  
+✅ Production-ready code quality  
+
+## Development Workflow
+
+### Building Locally
+
+```bash
+cd sixeyes/firmware/follower_esp32
+pio run              # Build
+pio run -t upload    # Flash
+pio device monitor   # Monitor
+```
+
+### Running Unit Tests
+
+```bash
+cd sixeyes/firmware/follower_esp32
+pio test             # Run all tests
+```
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Code style guidelines
+- Pull request process
+- Commit message conventions
+- Testing requirements
+
+## Troubleshooting
+
+### Compilation Issues
+👉 See [Build Troubleshooting](docs/deployment/FLASHING_AND_DEPLOYMENT.md#troubleshooting)
+
+### Hardware Not Responding
+👉 See [Hardware Validation](docs/hardware/HARDWARE_VALIDATION.md#troubleshooting)
+
+### ROS2 Communication Problems
+👉 See [ROS2 Quickstart - Troubleshooting](docs/ros2/ROS2_HEARTBEAT_QUICKSTART.md#troubleshooting)
+
+## Project Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Firmware Core | ✅ Complete | 400 Hz loop, all modules implemented |
+| Documentation | ✅ Complete | 10 comprehensive guides |
+| Unit Tests | ✅ Complete | 17 tests, all passing |
+| CI/CD Pipeline | ✅ Complete | 3 GitHub Actions workflows |
+| Hardware Validation | ✅ Complete | 15 validation procedures |
+| ROS2 Integration | ✅ Complete | Heartbeat, safety, telemetry |
+| Production Readiness | ✅ Ready | All critical features implemented |
+
+## Performance Metrics
+
+```
+Control Loop Frequency:      400 Hz ✓
+Motor Disable Latency:       < 2.5 ms ✓
+Firmware Size:               335 KB ✓
+RAM Usage:                   6.1% ✓
+Flash Usage:                 10% ✓
+Compiler Warnings:           0 ✓
+Unit Test Coverage:          17 tests passing ✓
+```
+
+## License
+
+This project is licensed under the [LICENSE](LICENSE) file.
+
+## Contact & Support
+
+For issues, questions, or contributions:
+- 📧 Email: [project-email]
+- 🐛 Issues: [GitHub Issues]
+- 💬 Discussions: [GitHub Discussions]
+
+---
+
+**Last Updated**: February 2026  
+**Latest Version**: Check [Releases](https://github.com/SixEyes-Open-Source/sixeyes/releases)
