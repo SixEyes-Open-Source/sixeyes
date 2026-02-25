@@ -125,6 +125,8 @@ struct BaseMessage {
     
     BaseMessage() = default;
     BaseMessage(MessageType t) : type(t) {}
+    // Make BaseMessage polymorphic so dynamic_cast works in handlers
+    virtual ~BaseMessage() = default;
 };
 
 /**

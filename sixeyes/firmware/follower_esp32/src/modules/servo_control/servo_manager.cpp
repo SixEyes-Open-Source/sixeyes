@@ -5,6 +5,9 @@
 
 // Define servo PWM pins per SixEyes technical reference
 const uint8_t ServoManager::SERVO_PINS[NUM_SERVOS] = { 35, 36, 37 };
+constexpr uint16_t ServoManager::PULSE_MIN_US;
+constexpr uint16_t ServoManager::PULSE_MID_US;
+constexpr uint16_t ServoManager::PULSE_MAX_US;
 
 ServoManager &ServoManager::instance() {
     static ServoManager inst;

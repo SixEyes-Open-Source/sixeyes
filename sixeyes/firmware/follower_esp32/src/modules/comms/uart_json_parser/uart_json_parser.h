@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <Arduino.h>
 #include "modules/config/board_config.h"
 #include "uart_json_messages.h"
 

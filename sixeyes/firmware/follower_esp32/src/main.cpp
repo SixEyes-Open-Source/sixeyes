@@ -1,8 +1,9 @@
 // SixEyes follower ESP32 - deterministic control loop wiring modules
 // Responsibilities: initialize modules and run deterministic control loop at CONTROL_LOOP_HZ
-// with ROS2 heartbeat integration for safety-critical control
+// Dual-mode firmware: VLA Inference (AI task) or Teleoperation (real-time mirroring)
 
 #include <Arduino.h>
+#include "modules/config/mode_config.h"              // Operation mode selection
 #include "modules/hal/gpio.h"
 #include "modules/motor_control/motor_controller.h"
 #include "modules/motor_control/motor_control_scheduler.h"
@@ -13,6 +14,7 @@
 #include "modules/safety/fault_manager.h"
 #include "modules/comms/uart_leader/uart_leader.h"
 #include "modules/comms/usb_cdc/usb_cdc.h"
+#include "modules/comms/message_router.h"    // Mode-aware message routing
 #include "modules/telemetry/telemetry_formatter.h"
 #include "modules/util/logging.h"
 #include "modules/config/board_config.h"
@@ -22,15 +24,19 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   Logging::info("SixEyes follower_esp32 starting");
+  Logging::infof("Operation mode: %s", MODE_NAME());
 
   HAL_GPIO::init(); // ensures motors disabled by default
 
-  // Initialize drivers and modules
+  // Initialize drivers and modules (shared by all modes)
   TMC2209Driver::instance().init();
   MotorController::instance().init();
   ServoManager::instance().init();
   TelemetryFormatter::instance().init();
   UartLeader::instance().init(115200);
+
+  // Initialize message router (mode-aware)
+  MessageRouter::init();
 
   // Initialize safety subsystem with ROS2 heartbeat bridge
   // Pass Serial (USB CDC) for ROS2 heartbeat communication
