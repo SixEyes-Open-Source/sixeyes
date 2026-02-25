@@ -8,6 +8,7 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 - 🚀 **Deploy Firmware**: [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
 - 🔌 **Build Hardware**: [Wiring & Assembly Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
 - 🤖 **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
+- 🎮 **Teleoperation Architecture**: [Dual-Mode Firmware Plan](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 - ✅ **Validate Hardware**: [Hardware Validation Procedures](docs/hardware/HARDWARE_VALIDATION.md)
 - 🛠️ **Run Tests**: [Testing & Validation Guide](docs/testing/TESTING_AND_VALIDATION_GUIDE.md)
 
@@ -48,6 +49,15 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 ✅ **Well-Tested**: Unit tests + hardware validation procedures  
 ✅ **CI/CD Ready**: GitHub Actions for automated builds and releases  
 
+### Firmware Operation Modes
+
+| Mode | Purpose | Data Path | Status |
+|------|---------|-----------|--------|
+| **VLA Inference** | Execute AI-planned tasks from laptop/ROS2 | Laptop ROS2 → Follower ESP32 | ✅ Active |
+| **Teleoperation** | Stream human-driven leader joint states for mirroring/data collection | Leader ESP32 → Laptop/Follower | 🚧 Phase 2 started |
+
+Current Phase 2 implementation includes `leader_esp32` joint-state streaming at 100 Hz using `JOINT_STATE` JSON messages.
+
 ## Repository Structure
 
 ```
@@ -65,7 +75,7 @@ sixeyes/
 │   │   ├── test/                    (unit tests & mocks)
 │   │   ├── platformio.ini           (build config)
 │   │   └── lib_deps                 (dependencies)
-│   └── leader_esp32/                (future multi-robot)
+│   └── leader_esp32/                (teleoperation joint-state streamer)
 │
 ├── ros2_ws/                         ← ROS2 workspace
 │   ├── src/
@@ -132,6 +142,26 @@ sixeyes/
    ```
 
 ⏭️ **Next**: Read [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
+
+### For Teleoperation Mode (Phase 2)
+
+1. **Build leader streamer firmware**:
+   ```bash
+   cd sixeyes/firmware/leader_esp32
+   pio run
+   ```
+
+2. **Flash leader ESP32**:
+   ```bash
+   pio run -t upload
+   ```
+
+3. **Monitor JOINT_STATE output (100 Hz)**:
+   ```bash
+   pio device monitor
+   ```
+
+⏭️ **Next**: Read [Teleoperation Mode Architecture](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 
 ### For Hardware Assembly
 

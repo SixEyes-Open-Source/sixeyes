@@ -105,6 +105,62 @@ Object:   "config": {"param1": 1.0, "param2": 2.0}
 | `STATISTICS` | ESP32 → ROS2 | Runtime statistics | ✅ Implemented |
 | `STATUS_HEARTBEAT` | ESP32 → ROS2 | Status keep-alive | ✅ Implemented |
 
+### Teleoperation Streaming Messages (Phase 2)
+
+| Type | Direction | Purpose | Status |
+|:-----|:----------|:--------|:-------|
+| `JOINT_STATE` | Leader ESP32 → Laptop/Follower | Stream leader joint angles + valid mask | ✅ Implemented in `leader_esp32` |
+| `TELEMETRY_STATE` | Follower ESP32 → Laptop/Leader | Stream follower feedback for sync/analysis | 🔲 Planned |
+
+---
+
+## Teleoperation Streaming Messages (Phase 2)
+
+These messages are used for the teleoperation pipeline and data collection flow.
+
+### JOINT_STATE - Leader Joint Streaming
+
+**Purpose**: Publish leader-arm joint angles continuously for mirroring.
+
+**Source**: `sixeyes/firmware/leader_esp32`.
+
+**Nominal rate**: 100 Hz (every 10 ms).
+
+**Format**:
+```json
+{
+  "cmd": "JOINT_STATE",
+  "seq": 42,
+  "ts": 1000500,
+  "leader_joints": [0.0, 45.0, 90.0, 135.0, 90.0, 90.0],
+  "valid_mask": [1, 1, 1, 1, 1, 1]
+}
+```
+
+**Fields**:
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `leader_joints` | float[6] | Leader joint angles (degrees) |
+| `valid_mask` | uint8[6] | Per-joint validity (`1` valid, `0` invalid/disconnected) |
+
+### TELEMETRY_STATE - Follower Telemetry Streaming
+
+**Purpose**: Return follower state during teleoperation (for sync, logging, model training).
+
+**Status**: Planned for follower teleoperation Phase 2 completion.
+
+**Proposed format**:
+```json
+{
+  "cmd": "TELEMETRY_STATE",
+  "seq": 42,
+  "ts": 1000500,
+  "follower_joints": [0.0, 45.0, 89.5, 134.2, 90.0, 91.2],
+  "errors": [0.0, 0.2, 0.5, 0.8, 0.0, 1.2],
+  "faults": [0, 0, 0, 0, 0, 0]
+}
+```
+
 ---
 
 ## Command Messages (ROS2 → ESP32)

@@ -9,8 +9,15 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
 ### 🧑‍💻 Firmware Developers
 1. Read: [Implementation Summary](firmware/IMPLEMENTATION_SUMMARY.md) (5 min)
 2. Read: [Visual Architecture Guide](firmware/VISUAL_ARCHITECTURE_GUIDE.md) (10 min)
-3. Follow: [Flashing & Deployment](deployment/FLASHING_AND_DEPLOYMENT.md) to build firmware
-4. Run: [Unit Tests](testing/TESTING_AND_VALIDATION_GUIDE.md) to verify code
+3. Read: [Teleoperation Mode Architecture](firmware/TELEOPERATION_MODE_ARCHITECTURE.md) (dual-mode design)
+4. Follow: [Flashing & Deployment](deployment/FLASHING_AND_DEPLOYMENT.md) to build firmware
+5. Run: [Unit Tests](testing/TESTING_AND_VALIDATION_GUIDE.md) to verify code
+
+### 🎮 Teleoperation Developers
+1. Read: [Teleoperation Mode Architecture](firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
+2. Reference: [JSON Message Protocol](protocols/JSON_MESSAGE_PROTOCOL.md#teleoperation-streaming-messages-phase-2)
+3. Build: `sixeyes/firmware/leader_esp32` (joint-state streamer)
+4. Validate: `JOINT_STATE` stream at 100 Hz from serial monitor
 
 ### 🔧 Hardware Integrators
 1. Gather: [Parts List](hardware/WIRING_AND_ASSEMBLY.md#parts-list)
@@ -55,6 +62,15 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
   - Module dependency graph
   - Hardware pin mapping and configuration
   - Signal flow diagrams
+
+#### [Teleoperation Mode Architecture](firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
+- **Contents**: Dual-mode firmware plan, teleoperation protocol, module roadmap
+- **Best For**: Implementing leader-follower mirroring and data-collection flow
+- **Read Time**: 15 minutes
+- **Key Sections**:
+  - VLA Inference vs Teleoperation mode comparison
+  - `JOINT_STATE` and `TELEMETRY_STATE` data-flow design
+  - Phase-based implementation plan (Phase 1 → Phase 3)
 
 ---
 
