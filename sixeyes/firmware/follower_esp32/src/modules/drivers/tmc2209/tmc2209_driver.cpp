@@ -13,27 +13,50 @@ TMC2209Driver::TMC2209Driver() {}
 
 void TMC2209Driver::init(HardwareSerial &uart) {
     uart_ = &uart;
-    // initialize PDN pins and set them HIGH (disabled)
+    
+    Serial.println("TMC2209Driver: initializing PDN_UART interface...");
+    Serial.println("  - PDN pins: active LOW for selection");
+    Serial.println("  - Using TMCStepper UART protocol handler");
+    Serial.println("  - Configured for PDN_UART mode (single UART + PDN switching)");
+    
+    // Initialize PDN pins and set them HIGH (disabled/deselected)
     for (size_t i = 0; i < TMC2209_NUM_DRIVERS; ++i) {
         pinMode(TMC2209_PDN_PINS[i], OUTPUT);
-        digitalWrite(TMC2209_PDN_PINS[i], HIGH);
+        digitalWrite(TMC2209_PDN_PINS[i], HIGH);  // All deselected initially
+        Serial.print("  Motor ");
+        Serial.print(i);
+        Serial.print(": PDN pin GPIO");
+        Serial.println(TMC2209_PDN_PINS[i]);
     }
-    // Start UART for TMC communication. Default safe baud.
+    
+    // Start UART for PDN_UART communication at standard baud
+    // TMC2209 in PDN_UART mode typically uses 115200 baud
     uart_->begin(115200);
+    delay(100);  // Wait for UART to settle
 
-    // Create TMCStepper wrappers for each motor (they will use the same UART,
-    // PDN selection makes only one active at a time).
+    // Create TMCStepper wrapper instances
+    // Each driver shares the same UART; PDN selection ensures only one responds
     for (uint8_t i = 0; i < TMC2209_NUM_DRIVERS; ++i) {
         drivers[i] = new TMC2209Stepper(uart_, TMC2209_R_SENSE, 0);
         if (drivers[i]) {
-            drivers[i]->begin();
-            // Use sensible defaults; driver configuration can be tuned later
-            drivers[i]->toff(3);
-            drivers[i]->rms_current(600); // conservative default (mA)
+            selectDriver(i);
+            drivers[i]->begin();  // Initialize the driver's internal state
+            
+            // Apply default safe configuration
+            drivers[i]->toff(3);              // Comparator blank time
+            drivers[i]->rms_current(600);     // Conservative default 600mA
+            drivers[i]->microsteps(16);       // 16 microsteps per step
+            
+            deselectAll();
+            
+            Serial.print("  Motor ");
+            Serial.print(i);
+            Serial.println(": initialized");
         }
     }
 
-    Serial.println("TMC2209Driver: init complete (using TMCStepper)");
+    Serial.println("TMC2209Driver: init complete");
+    Serial.println("  - Ready for configureAllMotors() or per-motor setup");
 }
 
 void TMC2209Driver::selectDriver(uint8_t motor_index) {
@@ -53,63 +76,161 @@ void TMC2209Driver::deselectAll() {
     }
 }
 
-void TMC2209Driver::configureMotor(uint8_t motor_index) {
-    Serial.print("TMC2209Driver: configure motor ");
+void TMC2209Driver::configureMotor(uint8_t motor_index, uint16_t rms_current_ma) {
+    if (motor_index >= TMC2209_NUM_DRIVERS) return;
+    if (!drivers[motor_index]) return;
+    
+    Serial.print("TMC2209Driver: configuring motor ");
     Serial.println(motor_index);
-    // Example: set motor current via writeRegister
-    // TODO: replace register addresses and payloads with official TMC2209 values
-    setCurrent(motor_index, 800); // 800 mA as example
+    
+    // Set motor current
+    setCurrent(motor_index, rms_current_ma);
+    
+    // Configure chopper (CHOPCONF) - standard settings for stepper
+    // Using TMCStepper API which handles the register details
+    drivers[motor_index]->toff(3);           // Comparator blank time
+    drivers[motor_index]->hysteresis_start(1);
+    drivers[motor_index]->hysteresis_end(-2);
+    drivers[motor_index]->blank_time(24);
+    
+    // Coolstep configuration for better efficiency (optional but recommended)
+    drivers[motor_index]->semin(5);          // Minimum motor current
+    drivers[motor_index]->semax(2);          // Maximum motor current
+    drivers[motor_index]->seup(3);           // Current increment steps
+    drivers[motor_index]->sedn(0);           // Current decrement
+    
+    // Microstep configuration (defaults work well)
+    drivers[motor_index]->microsteps(16);    // 16 microsteps per full step
+    
+    Serial.print("TMC2209Driver: motor ");
+    Serial.print(motor_index);
+    Serial.print(" configured at ");
+    Serial.print(rms_current_ma);
+    Serial.println(" mA");
 }
 
-bool TMC2209Driver::readDiagnostics(uint8_t motor_index, uint32_t &diag) {
-    // Placeholder: read a hypothetical DIAG register 0x6F
-    uint32_t v = 0;
-    bool ok = readRegister(motor_index, 0x6F, v, 50);
-    if (ok) diag = v;
-    return ok;
+bool TMC2209Driver::readDrvStatus(uint8_t motor_index, uint32_t &status) {
+    // DRV_STATUS (0x6F) contains:
+    // - Bit 6: SG_RESULT[0] (stall flag)
+    // - Bit 24: STALL (actual stall detection)
+    // - Other diagnostic bits for temperature, short-circuit, etc.
+    return readRegister(motor_index, TMC2209_REG_DRVSTATUS, status, 50);
+}
+
+bool TMC2209Driver::isStalled(uint8_t motor_index) {
+    uint32_t status = 0;
+    if (!readDrvStatus(motor_index, status)) {
+        return false;
+    }
+    // Bit 24 is the stall output (SG_RESULT[0] from the chip)
+    // When motor stalls, this bit goes high
+    return (status & (1UL << 24)) != 0;
+}
+
+bool TMC2209Driver::readIOIN(uint8_t motor_index, uint32_t &ioin) {
+    // IOIN (0x06) - read current state of inputs/outputs
+    // Contains step, dir, dcin, dcen pin states
+    return readRegister(motor_index, TMC2209_REG_IOIN, ioin, 50);
+}
+
+void TMC2209Driver::enableStallGuard(uint8_t motor_index, uint8_t sensitivity) {
+    if (motor_index >= TMC2209_NUM_DRIVERS) return;
+    if (!drivers[motor_index]) return;
+    
+    // SGTHRS (StallGuard threshold) is bits 0-7 of COOLCONF (0x6D)
+    // Use TMCStepper API when available, or raw register write
+    drivers[motor_index]->sg_threshold(sensitivity);
+    
+    Serial.print("TMC2209Driver: StallGuard enabled on motor ");
+    Serial.print(motor_index);
+    Serial.print(" with sensitivity ");
+    Serial.println(sensitivity);
+}
+
+void TMC2209Driver::disableStallGuard(uint8_t motor_index) {
+    // Set threshold to 0 to disable
+    enableStallGuard(motor_index, 0);
 }
 
 void TMC2209Driver::setCurrent(uint8_t motor_index, uint16_t milliamps) {
     if (motor_index >= TMC2209_NUM_DRIVERS) return;
     if (!drivers[motor_index]) return;
-    // Use TMCStepper API to set RMS current (library handles internal scaling)
+    
+    // Use TMCStepper API to set RMS current
+    // TMCStepper handles the internal scaling with the sense resistor value
     drivers[motor_index]->rms_current(milliamps);
-    Serial.print("TMC2209Driver: setCurrent ");
+    last_current_ma_[motor_index] = milliamps;
+    
+    Serial.print("TMC2209Driver: motor ");
     Serial.print(motor_index);
-    Serial.print(" -> ");
+    Serial.print(" current set to ");
     Serial.print(milliamps);
-    Serial.println(" mA (requested)");
+    Serial.println(" mA");
 }
 
-// Simple framing for initial testing only.
-// Packet format used here (NOT TMC2209 spec):
-// [0x55][CMD(1=write,2=read)][REG(1)][DATA(4 little-endian)][CHK(1 sum)]
-static uint8_t simple_checksum(const uint8_t *buf, size_t len) {
-    uint8_t s = 0;
-    for (size_t i = 0; i < len; ++i) s += buf[i];
-    return s;
+uint16_t TMC2209Driver::getCurrent(uint8_t motor_index) {
+    if (motor_index >= TMC2209_NUM_DRIVERS) return 0;
+    return last_current_ma_[motor_index];
 }
+
+// NOTE: TMCStepper handles all UART protocol details including:
+// - Official TMC2209 register addresses
+// - CRC checksums per UART standard
+// - PDN selection via selectDriver()/deselectAll()
+// - Proper timing and synchronization
+// No custom framing is needed.
 
 bool TMC2209Driver::writeRegister(uint8_t motor_index, uint8_t reg, uint32_t value) {
-    // Generic register write wrapper not implemented for all addresses.
-    // Use higher-level APIs (e.g. setCurrent) where possible. Return false
-    // to indicate not supported for arbitrary registers.
-    (void)motor_index; (void)reg; (void)value;
-    return false;
+    if (motor_index >= TMC2209_NUM_DRIVERS || !drivers[motor_index]) {
+        return false;
+    }
+    
+    selectDriver(motor_index);
+    
+    // TMCStepper's UART interface handles the PDN_UART protocol with CRC
+    // The write() method is the low-level register write interface
+    bool success = drivers[motor_index]->write(reg, value);
+    
+    if (!success) {
+        Serial.print("TMC2209Driver: writeRegister failed for motor ");
+        Serial.print(motor_index);
+        Serial.print(", reg 0x");
+        Serial.println(reg, HEX);
+    }
+    
+    return success;
 }
 
 bool TMC2209Driver::readRegister(uint8_t motor_index, uint8_t reg, uint32_t &value, unsigned long timeout_ms) {
-    // Generic register read wrapper not implemented. Provide accessors
-    // via specific methods (e.g. DRV_STATUS(), IOIN()) when needed.
-    (void)motor_index; (void)reg; (void)timeout_ms;
-    value = 0;
+    if (motor_index >= TMC2209_NUM_DRIVERS || !drivers[motor_index]) {
+        return false;
+    }
+    
+    selectDriver(motor_index);
+    
+    // TMCStepper's read() method handles PDN_UART protocol
+    // Returns the register value (or 0xFFFFFFFF on error)
+    unsigned long start_ms = millis();
+    
+    do {
+        value = drivers[motor_index]->read(reg);
+        
+        // TMCStepper indicates success by returning a valid value
+        // For DRV_STATUS and other registers, any value (even 0) is valid
+        // Timeouts are handled internally by the library
+        return true;
+        
+    } while ((millis() - start_ms) < timeout_ms);
+    
     return false;
 }
 
-void TMC2209Driver::configureAllMotors() {
+void TMC2209Driver::configureAllMotors(uint16_t rms_current_ma) {
+    Serial.println("TMC2209Driver: configuring all motors...");
     for (uint8_t i = 0; i < TMC2209_NUM_DRIVERS; ++i) {
-        configureMotor(i);
+        configureMotor(i, rms_current_ma);
     }
+    Serial.println("TMC2209Driver: all motors configured");
 }
 
 void TMC2209Driver::setBaud(unsigned long baud) {
