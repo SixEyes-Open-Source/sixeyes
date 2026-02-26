@@ -138,8 +138,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
         return false;
     }
     
-    // Allocate JSON document (stack-based for efficiency)
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json_line);
     
     if (error) {
@@ -148,8 +147,8 @@ bool UartJsonParser::parseLine(const char* json_line) {
     }
     
     // Extract message type
-    if (!doc.containsKey("cmd")) {
-        reportError("Missing required field: cmd");
+    if (!doc["cmd"].is<const char*>()) {
+        reportError("Missing or invalid required field: cmd");
         return false;
     }
     
@@ -164,10 +163,10 @@ bool UartJsonParser::parseLine(const char* json_line) {
     
     // Create base message
     BaseMessage base_msg(msg_type);
-    if (doc.containsKey("seq")) {
+    if (doc["seq"].is<uint32_t>()) {
         base_msg.seq = doc["seq"].as<uint32_t>();
     }
-    if (doc.containsKey("ts")) {
+    if (doc["ts"].is<uint64_t>()) {
         base_msg.timestamp_ms = doc["ts"].as<uint64_t>();
     }
     
@@ -180,7 +179,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("targets") && doc["targets"].is<JsonArray>()) {
+            if (doc["targets"].is<JsonArray>()) {
                 JsonArray targets = doc["targets"];
                 msg.motor_count = std::min((size_t)NUM_STEPPERS, targets.size());
                 for (uint8_t i = 0; i < msg.motor_count; i++) {
@@ -202,7 +201,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             
             bool has_pwm = false, has_degrees = false;
             
-            if (doc.containsKey("pwm_us") && doc["pwm_us"].is<JsonArray>()) {
+            if (doc["pwm_us"].is<JsonArray>()) {
                 JsonArray pwm = doc["pwm_us"];
                 msg.servo_count = std::min((size_t)NUM_SERVOS, pwm.size());
                 msg.is_pwm_us = true;
@@ -210,7 +209,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
                     msg.values[i] = pwm[i].as<float>();
                 }
                 has_pwm = true;
-            } else if (doc.containsKey("degrees") && doc["degrees"].is<JsonArray>()) {
+            } else if (doc["degrees"].is<JsonArray>()) {
                 JsonArray deg = doc["degrees"];
                 msg.servo_count = std::min((size_t)NUM_SERVOS, deg.size());
                 msg.is_pwm_us = false;
@@ -233,7 +232,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("enable")) {
+            if (doc["enable"].is<bool>()) {
                 msg.enable = doc["enable"].as<bool>();
                 parse_success = true;
                 message_count_++;
@@ -247,7 +246,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("ack")) {
+            if (doc["ack"].is<bool>()) {
                 msg.acknowledge = doc["ack"].as<bool>();
             }
             parse_success = true;
@@ -261,19 +260,19 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("motor")) {
+            if (doc["motor"].is<uint8_t>()) {
                 msg.motor_index = doc["motor"].as<uint8_t>();
             }
-            if (doc.containsKey("kp")) {
+            if (doc["kp"].is<float>()) {
                 msg.kp = doc["kp"].as<float>();
             }
-            if (doc.containsKey("ki")) {
+            if (doc["ki"].is<float>()) {
                 msg.ki = doc["ki"].as<float>();
             }
-            if (doc.containsKey("kd")) {
+            if (doc["kd"].is<float>()) {
                 msg.kd = doc["kd"].as<float>();
             }
-            if (doc.containsKey("antiwindup")) {
+            if (doc["antiwindup"].is<bool>()) {
                 msg.antiwindup = doc["antiwindup"].as<bool>();
             }
             parse_success = true;
@@ -296,10 +295,10 @@ bool UartJsonParser::parseLine(const char* json_line) {
             HomeStallGuardMessage msg;
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
-            if (doc.containsKey("motor_mask")) {
+            if (doc["motor_mask"].is<uint8_t>()) {
                 msg.motor_mask = doc["motor_mask"].as<uint8_t>();
             }
-            if (doc.containsKey("sensitivity")) {
+            if (doc["sensitivity"].is<uint8_t>()) {
                 msg.sensitivity = doc["sensitivity"].as<uint8_t>();
             }
             parse_success = true;
@@ -323,10 +322,10 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("fault")) msg.fault = doc["fault"].as<uint8_t>();
-            if (doc.containsKey("motors_en")) msg.motors_en = doc["motors_en"].as<uint8_t>();
-            if (doc.containsKey("ros2_alive")) msg.ros2_alive = doc["ros2_alive"].as<uint8_t>();
-            if (doc.containsKey("freq")) msg.freq = doc["freq"].as<float>();
+            if (doc["fault"].is<uint8_t>()) msg.fault = doc["fault"].as<uint8_t>();
+            if (doc["motors_en"].is<uint8_t>()) msg.motors_en = doc["motors_en"].as<uint8_t>();
+            if (doc["ros2_alive"].is<uint8_t>()) msg.ros2_alive = doc["ros2_alive"].as<uint8_t>();
+            if (doc["freq"].is<float>()) msg.freq = doc["freq"].as<float>();
             
             parse_success = true;
             message_count_++;
@@ -340,7 +339,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("param") && doc.containsKey("value")) {
+            if (doc["param"].is<const char*>() && doc["value"].is<float>()) {
                 strlcpy(msg.param_name, doc["param"].as<const char*>(), sizeof(msg.param_name));
                 msg.value = doc["value"].as<float>();
                 parse_success = true;
@@ -355,7 +354,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("enable")) {
+            if (doc["enable"].is<bool>()) {
                 msg.enable = doc["enable"].as<bool>();
                 parse_success = true;
                 message_count_++;
@@ -369,7 +368,7 @@ bool UartJsonParser::parseLine(const char* json_line) {
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
             
-            if (doc.containsKey("hz")) {
+            if (doc["hz"].is<uint16_t>()) {
                 msg.rate_hz = doc["hz"].as<uint16_t>();
                 parse_success = true;
                 message_count_++;
@@ -432,7 +431,7 @@ void UartJsonParser::reportError(const char* error_msg) {
  *   sendJsonStatus(Serial, status);
  */
 void sendJsonStatus(HardwareSerial& uart, const MotorStatusMessage& msg) {
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["cmd"] = "MOTOR_STATUS";
     doc["seq"] = msg.seq;
     doc["motor"] = msg.motor_index;
@@ -447,7 +446,7 @@ void sendJsonStatus(HardwareSerial& uart, const MotorStatusMessage& msg) {
 }
 
 void sendJsonStatus(HardwareSerial& uart, const ServoStatusMessage& msg) {
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["cmd"] = "SERVO_STATUS";
     doc["seq"] = msg.seq;
     doc["servo"] = msg.servo_index;
@@ -461,7 +460,7 @@ void sendJsonStatus(HardwareSerial& uart, const ServoStatusMessage& msg) {
 }
 
 void sendJsonStatus(HardwareSerial& uart, const SystemStatusMessage& msg) {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["cmd"] = "SYSTEM_STATUS";
     doc["seq"] = msg.seq;
     doc["uptime_ms"] = msg.uptime_ms;
@@ -478,7 +477,7 @@ void sendJsonStatus(HardwareSerial& uart, const SystemStatusMessage& msg) {
 }
 
 void sendJsonStatus(HardwareSerial& uart, const StatisticsMessage& msg) {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["cmd"] = "STATISTICS";
     doc["seq"] = msg.seq;
     doc["loop_freq"] = msg.control_loop_freq;
