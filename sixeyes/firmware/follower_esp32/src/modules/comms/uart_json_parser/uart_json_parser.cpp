@@ -295,10 +295,10 @@ bool UartJsonParser::parseLine(const char* json_line) {
             HomeStallGuardMessage msg;
             msg.seq = base_msg.seq;
             msg.timestamp_ms = base_msg.timestamp_ms;
-            if (doc["motor_mask"].is<uint8_t>()) {
+            if (doc.containsKey("motor_mask")) {
                 msg.motor_mask = doc["motor_mask"].as<uint8_t>();
             }
-            if (doc["sensitivity"].is<uint8_t>()) {
+            if (doc.containsKey("sensitivity")) {
                 msg.sensitivity = doc["sensitivity"].as<uint8_t>();
             }
             parse_success = true;
