@@ -1,6 +1,6 @@
 # SixEyes Documentation Index
 
-Complete navigation guide for all SixEyes firmware and hardware documentation.
+Navigation guide for SixEyes firmware, ROS2, teleoperation, and hardware documentation.
 
 ## Quick Start
 
@@ -19,6 +19,7 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
 3. Build: `sixeyes/firmware/leader_esp32` (joint-state streamer)
 4. Run bridge: `python sixeyes/tools/teleoperation_bridge.py --leader-port COM5 --follower-port COM6`
 5. Validate: `JOINT_STATE` forwarding + optional JSONL logging
+6. Optional: run `python sixeyes/tools/operator_control.py --port COM6 teleop-ready` for follower-side safety/enable command flow
 
 ### 🔧 Hardware Integrators
 1. Gather: [Parts List](hardware/WIRING_AND_ASSEMBLY.md#parts-list)
@@ -143,7 +144,7 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
 - **Key Sections**:
   - Protocol overview (extensible, non-blocking, type-safe)
   - Message format with common fields (cmd, seq, ts)
-  - 16+ message types (commands and responses)
+  - Command and response message reference (implemented + planned)
   - Examples for each message type
   - Error handling and edge cases
   - Integration examples with Python/C++
@@ -198,6 +199,7 @@ Complete navigation guide for all SixEyes firmware and hardware documentation.
 - **Contents**: Datasheets, technical specifications, hardware manuals
 - **Best For**: Looking up chip specifications, pinouts, electrical specs
 - **Files**:
+  - `FIRMWARE_SYSTEM_DATASHEET.md` - Firmware-level system datasheet (interfaces, limits, safety behavior, maturity)
   - `tmc2209_datasheet_rev1.09.pdf` - TMC2209 stepper driver specifications
   - `SixEyes Technical Reference.txt` - Hardware technical specifications
 
@@ -344,4 +346,4 @@ A: See [CI/CD Pipeline](ops/CI_CD_PIPELINE.md).
 
 **Last Updated**: February 2026  
 **Documentation Version**: 2.0  
-**Status**: ✅ Complete and production-ready
+**Status**: 🚧 Active and evolving with ongoing teleoperation + ROS2 updates

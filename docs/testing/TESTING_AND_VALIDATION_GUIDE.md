@@ -1,6 +1,6 @@
 # SixEyes Unit Testing & Validation Guide
 
-Complete guide for running unit tests, simulations, and hardware validation procedures.
+Guide for running unit tests, simulations, and hardware validation procedures.
 
 ---
 
@@ -573,4 +573,4 @@ if (!uart_) return false;  // Guard clause
 
 ---
 
-**Unit Testing Complete! Ready for production. 🧪**
+**Unit testing baseline is in place; continue with hardware and integration validation. 🧪**

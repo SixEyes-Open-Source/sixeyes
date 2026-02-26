@@ -1,6 +1,6 @@
 # JSON Message Protocol for SixEyes UART Communication
 
-Complete reference for the extensible JSON message protocol used in SixEyes firmware for UART-based communication with ROS2 and external systems.
+Working reference for the extensible JSON message protocol used in SixEyes firmware for UART-based communication with ROS2 and external systems.
 
 ---
 
@@ -78,7 +78,7 @@ Object:   "config": {"param1": 1.0, "param2": 2.0}
 
 ## Message Types
 
-### Command Message Types (16 types)
+### Command Message Types (implemented + planned)
 
 | Type | Direction | Purpose | Status |
 |:-----|:----------|:--------|:-------|
@@ -86,6 +86,8 @@ Object:   "config": {"param1": 1.0, "param2": 2.0}
 | `SERVO_TARGET` | ROS2 → ESP32 | Set servo PWM values | ✅ Implemented |
 | `ENABLE_MOTORS` | ROS2 → ESP32 | Enable/disable motor outputs | ✅ Implemented |
 | `RESET_FAULT` | ROS2 → ESP32 | Clear fault state | ✅ Implemented |
+| `HOME_ZERO` | ROS2/Laptop → ESP32 | Software zeroing (current pose as logical zero) | ✅ Implemented |
+| `HOME_STALLGUARD` | ROS2/Laptop → ESP32 | Hybrid StallGuard homing (seek stall, backoff, re-approach) | ✅ Implemented |
 | `TUNE_PID` | ROS2 → ESP32 | Update PID gains | ✅ Implemented |
 | `CONFIG_PARAM` | ROS2 → ESP32 | Set configuration parameter | ✅ Implemented |
 | `CONFIG_SAVE` | ROS2 → ESP32 | Save config to EEPROM | 🔲 Planned |
@@ -339,6 +341,55 @@ echo '{"cmd":"RESET_FAULT","seq":4}' > /dev/ttyUSB0
 **Example**: Increase responsiveness
 ```bash
 echo '{"cmd":"TUNE_PID","seq":5,"motor":0,"kp":3.0,"ki":0.08,"kd":0.15}' > /dev/ttyUSB0
+```
+
+---
+
+### 4a. HOME_ZERO - Latch Current Position as Zero
+
+**Purpose**: Define current stepper positions as logical joint zero.
+
+**Format**:
+```json
+{
+  "cmd": "HOME_ZERO",
+  "seq": 40
+}
+```
+
+**Behavior**:
+1. Latches each motor's current position as zero offset
+2. Resets target/current logical joint deltas around new zero frame
+3. Keeps safety and fault state unchanged
+
+**Example**:
+```bash
+echo '{"cmd":"HOME_ZERO","seq":40}' > /dev/ttyUSB0
+```
+
+---
+
+### 4b. HOME_STALLGUARD - Hybrid Mechanical + Logical Homing
+
+**Purpose**: Execute coarse mechanical reference via StallGuard, then align logical zero.
+
+**Format**:
+```json
+{
+  "cmd": "HOME_STALLGUARD",
+  "seq": 41
+}
+```
+
+**Behavior**:
+1. Enables StallGuard check on configured axes
+2. Seeks stall in homing direction
+3. Backs off and re-approaches for repeatability
+4. Stores the homed position as logical zero offset
+
+**Example**:
+```bash
+echo '{"cmd":"HOME_STALLGUARD","seq":41}' > /dev/ttyUSB0
 ```
 
 ---
@@ -739,6 +790,20 @@ Behavior:
 - Drops malformed packets and tracks counters.
 - Optionally writes both directions to JSONL for dataset collection.
 
+### Example 5: Operator Command Sequence (Python Helper)
+
+```bash
+cd sixeyes/tools
+python operator_control.py --port COM6 teleop-ready
+python operator_control.py --port COM6 home
+python operator_control.py --port COM6 stallguard-home
+```
+
+Behavior:
+- Sends heartbeat and safety-aware command sequence
+- Enables motors and supports fault reset flow
+- Triggers software zero or StallGuard hybrid homing
+
 ---
 
 ## Performance & Constraints
@@ -862,6 +927,6 @@ echo '{"cmd":"HEARTBEAT","seq":101}' > /dev/ttyUSB0
 
 ---
 
-**JSON Protocol Complete! Ready for ROS2 Integration.**
+**JSON protocol is actively evolving alongside firmware and ROS2 integration.**
 
-For implementation details, see [uart_json_parser.h](uart_json_parser.h) and [uart_json_messages.h](uart_json_messages.h).
+For implementation details, see `sixeyes/firmware/follower_esp32/src/modules/comms/uart_json_parser/uart_json_parser.cpp` and `sixeyes/firmware/follower_esp32/src/modules/comms/uart_json_parser/uart_json_messages.h`.
