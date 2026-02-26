@@ -1,23 +1,24 @@
 // SixEyes follower ESP32 - deterministic control loop wiring modules
-// Responsibilities: initialize modules and run deterministic control loop at CONTROL_LOOP_HZ
-// Dual-mode firmware: VLA Inference (AI task) or Teleoperation (real-time mirroring)
+// Responsibilities: initialize modules and run deterministic control loop at
+// CONTROL_LOOP_HZ Dual-mode firmware: VLA Inference (AI task) or Teleoperation
+// (real-time mirroring)
 
-#include <Arduino.h>
-#include "modules/config/mode_config.h"              // Operation mode selection
-#include "modules/hal/gpio.h"
-#include "modules/motor_control/motor_controller.h"
-#include "modules/motor_control/motor_control_scheduler.h"
-#include "modules/drivers/tmc2209/tmc2209_driver.h"
-#include "modules/servo_control/servo_manager.h"
-#include "modules/safety/heartbeat_monitor.h"
-#include "modules/safety/safety_task.h"
-#include "modules/safety/fault_manager.h"
+#include "modules/comms/message_router.h" // Mode-aware message routing
 #include "modules/comms/uart_leader/uart_leader.h"
 #include "modules/comms/usb_cdc/usb_cdc.h"
-#include "modules/comms/message_router.h"    // Mode-aware message routing
+#include "modules/config/board_config.h"
+#include "modules/config/mode_config.h" // Operation mode selection
+#include "modules/drivers/tmc2209/tmc2209_driver.h"
+#include "modules/hal/gpio.h"
+#include "modules/motor_control/motor_control_scheduler.h"
+#include "modules/motor_control/motor_controller.h"
+#include "modules/safety/fault_manager.h"
+#include "modules/safety/heartbeat_monitor.h"
+#include "modules/safety/safety_task.h"
+#include "modules/servo_control/servo_manager.h"
 #include "modules/telemetry/telemetry_formatter.h"
 #include "modules/util/logging.h"
-#include "modules/config/board_config.h"
+#include <Arduino.h>
 #include <array>
 
 void setup() {
@@ -58,4 +59,3 @@ void loop() {
   // USB CDC and other background tasks can run on core 1
   delay(100);
 }
-

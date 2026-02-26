@@ -67,7 +67,10 @@ jobs:
         echo "=== Checking Code Formatting ==="
         
         # Find all C++ files
-        FILES=$(find src/ include/ -name "*.h" -o -name "*.cpp")
+        # Find all C++ files (handle optional include/)
+        DIRS="src"
+        [ -d "include" ] && DIRS="$DIRS include"
+        FILES=$(find $DIRS -type f \( -name "*.h" -o -name "*.cpp" \))
         
         ISSUES=0
         for file in $FILES; do
