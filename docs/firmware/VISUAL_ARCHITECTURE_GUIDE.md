@@ -6,6 +6,22 @@ Complete visual reference for the SixEyes 6-DOF robotic arm firmware and distrib
 
 ## System Overview
 
+### Dual-Mode Runtime View
+
+```
+                    ┌───────────────────────────────────┐
+                    │    FOLLOWER ESP32 (single FW)     │
+                    │    Compile-time OPERATION_MODE     │
+                    └───────────────────────────────────┘
+                               /            \
+                              /              \
+         MODE_VLA_INFERENCE (1)              MODE_TELEOPERATION (2)
+         Laptop ROS2 -> follower             leader_esp32 -> bridge -> follower
+         HEARTBEAT + JSON commands           JOINT_STATE + TELEMETRY_STATE
+```
+
+In both modes, the same 400 Hz safety/motor/servo core remains active; only command routing and comms behavior differ.
+
 ### High-Level Architecture
 
 ```

@@ -7,7 +7,7 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 - 📘 **Getting Started**: Read [Complete Documentation Index](docs/README.md#quick-start)
 - 🚀 **Deploy Firmware**: [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
 - 🔌 **Build Hardware**: [Wiring & Assembly Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
-- 🤖 **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
+-  **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
 - 🎮 **Teleoperation Architecture**: [Dual-Mode Firmware Plan](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 - ✅ **Validate Hardware**: [Hardware Validation Procedures](docs/hardware/HARDWARE_VALIDATION.md)
 - 🛠️ **Run Tests**: [Testing & Validation Guide](docs/testing/TESTING_AND_VALIDATION_GUIDE.md)
@@ -109,6 +109,10 @@ sixeyes/
 ├── simulation/                      ← Gazebo simulation
 │   ├── models/
 │   └── launch/
+│
+├── hardware_assets/                 ← Mechanical + PCB production files
+│   ├── 3d_print_stl/                (STL files for printed parts)
+│   └── pcb_schematic_gerber/        (schematics + Gerbers)
 │
 ├── docs/                            ← Documentation ⭐ START HERE
 │   ├── README.md                    (doc navigation)
@@ -317,8 +321,8 @@ See [JSON Message Protocol](docs/protocols/JSON_MESSAGE_PROTOCOL.md) for full sp
 ✅ 17 unit tests (all passing)  
 ✅ 15 hardware validation procedures  
 ✅ CI/CD automated builds with memory constraints  
-✅ Zero compiler warnings  
-✅ Production-ready code quality  
+⚠️ Some non-blocking ArduinoJson deprecation warnings remain  
+✅ Build-ready code quality (leader + follower compile successfully)  
 
 ## Development Workflow
 
@@ -361,13 +365,22 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Firmware Core | ✅ Complete | 400 Hz loop, all modules implemented |
-| Documentation | ✅ Complete | 10 comprehensive guides |
-| Unit Tests | ✅ Complete | 17 tests, all passing |
+| Firmware Core (VLA) | ✅ Stable | Follower control loop + safety heartbeat |
+| Firmware Core (Teleop) | 🚧 In Progress | Leader stream + bridge + follower telemetry stub |
+| Documentation | ✅ Active | Dual-mode docs updated; ongoing refinements |
+| Unit Tests | 🟡 Partial | Existing tests pass; teleop path tests still needed |
 | CI/CD Pipeline | ✅ Complete | 3 GitHub Actions workflows |
-| Hardware Validation | ✅ Complete | 15 validation procedures |
-| ROS2 Integration | ✅ Complete | Heartbeat, safety, telemetry |
-| Production Readiness | ✅ Ready | All critical features implemented |
+| Hardware Validation | ✅ Available | Baseline + teleoperation checks documented |
+| ROS2 Integration | 🟡 Partial | Heartbeat path done; teleop ROS nodes need expansion |
+| Production Readiness | 🟡 Nearing | VLA path ready; full teleop integration pending |
+
+## Current TODO (High Priority)
+
+1. Implement full teleoperation follower pipeline (replace telemetry stub with real joint/motor feedback)
+2. Add automated integration test for `leader_esp32` → bridge → `follower_esp32`
+3. Expand ROS2 workspace teleoperation nodes (`joint_state_node`, `usb_bridge_node`) for end-to-end runtime
+4. Add dataset logging workflow and schema validation for teleoperation captures
+5. Finalize hardware bring-up checklist for dual-controller (leader + follower) setups
 
 ## Performance Metrics
 

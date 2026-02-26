@@ -2,6 +2,10 @@
 
 Complete reference for physically integrating the ESP32-S3 controller with motors, servos, and power supplies.
 
+For dual-mode operation, hardware can be deployed in two configurations:
+- **VLA Inference**: follower controller only
+- **Teleoperation**: leader controller + follower controller + laptop bridge
+
 ---
 
 ## Table of Contents
@@ -15,6 +19,33 @@ Complete reference for physically integrating the ESP32-S3 controller with motor
 7. [Grounding Strategy](#grounding-strategy)
 8. [Testing Checklist](#testing-checklist)
 9. [Troubleshooting](#troubleshooting)
+
+---
+
+## Dual-Mode Hardware Topology
+
+### VLA Inference Topology
+
+```
+Laptop ROS2 (USB)
+  ↕
+Follower ESP32-S3
+  ↕
+Motors + Servos
+```
+
+### Teleoperation Topology
+
+```
+Leader ESP32 (joint sensors) --USB--> Laptop Bridge --USB--> Follower ESP32-S3
+                                     ↕
+                                  Motors + Servos
+```
+
+**Teleoperation wiring additions**:
+- Add one extra USB serial link for `leader_esp32`
+- Route leader joint sensors (potentiometers/encoders) to leader ADC pins
+- Keep follower motor/servo wiring unchanged
 
 ---
 

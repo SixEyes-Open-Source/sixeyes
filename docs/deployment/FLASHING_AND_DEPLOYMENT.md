@@ -2,6 +2,10 @@
 
 Complete instructions for programming the ESP32-S3 firmware and deploying to hardware.
 
+This guide now covers **dual-mode firmware setup**:
+- **VLA Inference mode**: Laptop ROS2 → `follower_esp32`
+- **Teleoperation mode**: `leader_esp32` → Laptop bridge → `follower_esp32`
+
 ---
 
 ## Table of Contents
@@ -17,6 +21,23 @@ Complete instructions for programming the ESP32-S3 firmware and deploying to har
 ---
 
 ## Pre-Deployment Checklist
+
+### Mode Selection Checklist
+
+- [ ] **Select deployment mode**:
+  - `MODE_VLA_INFERENCE` (default) for laptop/ROS2 task execution
+  - `MODE_TELEOPERATION` for leader/follower mirroring and data collection
+
+- [ ] **Set follower mode in build flags** (`sixeyes/firmware/follower_esp32/platformio.ini`):
+  ```ini
+  build_flags =
+    -DCORE_MHZ=240
+    -DOPERATION_MODE=1   ; 1=VLA_INFERENCE, 2=TELEOPERATION
+  ```
+
+- [ ] **If teleoperation mode**:
+  - Build/flash `sixeyes/firmware/leader_esp32`
+  - Run laptop bridge: `python sixeyes/tools/teleoperation_bridge.py --leader-port COMx --follower-port COMy`
 
 ### Development Environment
 
@@ -79,7 +100,30 @@ Complete instructions for programming the ESP32-S3 firmware and deploying to har
 
 ## Firmware Build & Compilation
 
+### Dual-Target Build Matrix
+
+| Target | Purpose | Build Command |
+|:-------|:--------|:--------------|
+| `follower_esp32` | Main control firmware (VLA or Teleoperation mode) | `cd sixeyes/firmware/follower_esp32 && pio run` |
+| `leader_esp32` | Teleoperation JOINT_STATE streamer | `cd sixeyes/firmware/leader_esp32 && pio run` |
+
 ### Method 1: PlatformIO CLI (Recommended for CI/CD)
+
+#### Build Leader Streamer (Teleoperation)
+
+```bash
+cd sixeyes/firmware/leader_esp32
+pio run
+
+# Output: .pio/build/leader_esp32/firmware.bin
+```
+
+**Expected Output**:
+```
+Processing leader_esp32 (platform: espressif32; board: esp32dev; ...)
+Building in release mode
+====== BUILD SUCCESSFUL ======
+```
 
 #### Build Only (No Flashing)
 
@@ -189,6 +233,13 @@ Arduino IDE is NOT recommended for SixEyes (tool pain, limited debugging). Use P
 ---
 
 ## Flashing Methods
+
+### Teleoperation Deployment Order (Phase 3)
+
+1. Flash `leader_esp32`
+2. Flash `follower_esp32` with `OPERATION_MODE=2`
+3. Start laptop bridge utility (`sixeyes/tools/teleoperation_bridge.py`)
+4. Validate `JOINT_STATE` and `TELEMETRY_STATE` traffic in serial logs
 
 ### Method 1: PlatformIO USB Auto-Flash (Easiest)
 

@@ -1,5 +1,22 @@
 # ROS2 Heartbeat Integration - Implementation Complete ✓
 
+## Dual-Mode Firmware Status (Feb 2026)
+
+SixEyes firmware is now organized as **dual-mode**:
+
+| Mode | Compile-Time Flag | Runtime Role | Current Status |
+|:-----|:------------------|:-------------|:---------------|
+| VLA Inference | `OPERATION_MODE=1` (`MODE_VLA_INFERENCE`) | Laptop ROS2 command execution | ✅ Stable |
+| Teleoperation | `OPERATION_MODE=2` (`MODE_TELEOPERATION`) | Leader/follower mirroring + dataset capture | 🚧 In progress (Phase 3) |
+
+### What is implemented for dual-mode
+
+- `mode_config.h` mode selection (`MODE_VLA_INFERENCE`, `MODE_TELEOPERATION`)
+- `message_router` mode-aware command dispatch
+- `leader_esp32` JOINT_STATE streaming at 100 Hz
+- Laptop bridge utility (`sixeyes/tools/teleoperation_bridge.py`)
+- Follower teleoperation stub that emits `TELEMETRY_STATE`
+
 ## Project Status: Heartbeat Hooks Phase Complete
 
 **Date**: [Current Date]  

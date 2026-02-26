@@ -18,6 +18,16 @@ Complete reference for hardware bring-up testing, validation, and qualification 
 
 ## Pre-Testing Checklists
 
+### Mode Selection Validation
+
+- [ ] Confirm target mode before test session:
+  - VLA Inference (`OPERATION_MODE=1`)
+  - Teleoperation (`OPERATION_MODE=2`)
+- [ ] If Teleoperation mode:
+  - Leader ESP32 is flashed and streaming `JOINT_STATE`
+  - Laptop bridge is running and forwarding packets
+  - Follower emits `TELEMETRY_STATE` stub or full telemetry
+
 ### Hardware Assembly Verification
 
 - [ ] **Power Supply Checks**
@@ -34,7 +44,7 @@ Complete reference for hardware bring-up testing, validation, and qualification 
   - No loose connectors (pull test with 5 N force)
 
 - [ ] **Servo Connections**
-  - Three servos on GPIO 14/21/34 (verify with schematic)
+  - Three servos on GPIO 35/36/37 (verify with schematic)
   - Power and ground distributed with capacitors
   - Signal wires not crossing power lines
   - Connectors fully seated and confirmed with visual inspection
@@ -150,6 +160,26 @@ Observe: [SafetyTask] EN pin HIGH (response received)
 ---
 
 ## Integration Testing
+
+### Test 3A: Teleoperation Link Validation (Leader → Bridge → Follower)
+
+**Objective**: Verify serial chain for teleoperation mode.
+
+**Procedure**:
+```
+1. Set follower firmware to OPERATION_MODE=2 and flash.
+2. Flash leader_esp32 and start serial monitor.
+3. Run laptop bridge:
+  python sixeyes/tools/teleoperation_bridge.py --leader-port COMx --follower-port COMy
+4. Verify bridge stats:
+  - packets_forwarded increments
+  - telemetry_in increments
+```
+
+**Acceptance**:
+- Bridge forwards JOINT_STATE without sustained drops
+- Follower returns TELEMETRY_STATE
+- No serial disconnect/reset loops during 5-minute run
 
 ### Test 4: Motor Enable/Disable Sequence
 
