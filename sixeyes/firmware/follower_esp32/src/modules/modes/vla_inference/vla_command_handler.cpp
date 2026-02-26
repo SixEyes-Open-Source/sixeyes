@@ -54,6 +54,12 @@ static void handleEnableMotors(const BaseMessage& msg) {
   }
 }
 
+static void handleHomeZero(const BaseMessage& msg) {
+  (void)msg;
+  Logging::info("VLA: HOME_ZERO requested");
+  MotorController::instance().setCurrentPositionAsZero();
+}
+
 static void handleParseError(const char* error, uint32_t line) {
   Logging::warnf("VLA: JSON parse error on line %lu", static_cast<unsigned long>(line));
   Logging::warn(error);
@@ -69,6 +75,7 @@ void VLACommandHandler::init() {
   parser.registerHandler(MessageType::SERVO_TARGET, handleServoTarget);
   parser.registerHandler(MessageType::HEARTBEAT, handleHeartbeat);
   parser.registerHandler(MessageType::ENABLE_MOTORS, handleEnableMotors);
+  parser.registerHandler(MessageType::HOME_ZERO, handleHomeZero);
   
   parser.setErrorHandler(handleParseError);
   

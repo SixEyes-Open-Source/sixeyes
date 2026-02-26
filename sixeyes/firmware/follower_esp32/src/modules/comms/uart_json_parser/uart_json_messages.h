@@ -34,6 +34,7 @@ enum class MessageType : uint8_t {
     ENABLE_MOTORS = 3,     // Enable/disable motor outputs
     RESET_FAULT = 4,       // Clear fault state
     TUNE_PID = 5,          // Update PID gains
+    HOME_ZERO = 6,         // Set current step-counter position as software zero
     
     // Configuration messages
     CONFIG_PARAM = 10,     // Set config parameter
@@ -70,6 +71,7 @@ inline MessageType cmdStringToType(const char* cmd) {
     if (strcmp(cmd, "ENABLE_MOTORS") == 0) return MessageType::ENABLE_MOTORS;
     if (strcmp(cmd, "RESET_FAULT") == 0) return MessageType::RESET_FAULT;
     if (strcmp(cmd, "TUNE_PID") == 0) return MessageType::TUNE_PID;
+    if (strcmp(cmd, "HOME_ZERO") == 0) return MessageType::HOME_ZERO;
     if (strcmp(cmd, "CONFIG_PARAM") == 0) return MessageType::CONFIG_PARAM;
     if (strcmp(cmd, "CONFIG_SAVE") == 0) return MessageType::CONFIG_SAVE;
     if (strcmp(cmd, "CONFIG_RESET") == 0) return MessageType::CONFIG_RESET;
@@ -97,6 +99,7 @@ inline const char* typeToString(MessageType type) {
         case MessageType::ENABLE_MOTORS: return "ENABLE_MOTORS";
         case MessageType::RESET_FAULT: return "RESET_FAULT";
         case MessageType::TUNE_PID: return "TUNE_PID";
+        case MessageType::HOME_ZERO: return "HOME_ZERO";
         case MessageType::CONFIG_PARAM: return "CONFIG_PARAM";
         case MessageType::CONFIG_SAVE: return "CONFIG_SAVE";
         case MessageType::CONFIG_RESET: return "CONFIG_RESET";
@@ -192,6 +195,15 @@ struct TunePidMessage : public BaseMessage {
     bool antiwindup = true;   // Enable anti-windup for integrator
     
     TunePidMessage() : BaseMessage(MessageType::TUNE_PID) {}
+};
+
+/**
+ * @struct HomeZeroMessage
+ * Command: Set the current motor step counters as software zero reference
+ * Example: {"cmd":"HOME_ZERO","seq":42}
+ */
+struct HomeZeroMessage : public BaseMessage {
+    HomeZeroMessage() : BaseMessage(MessageType::HOME_ZERO) {}
 };
 
 /**

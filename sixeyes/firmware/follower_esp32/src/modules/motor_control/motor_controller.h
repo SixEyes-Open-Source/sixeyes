@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cmath>
 #include "modules/config/board_config.h"
+#include "modules/drivers/tmc2209/tmc2209_config.h"
 
 class MotorController {
 public:
@@ -13,6 +14,7 @@ public:
     void enableMotors();
     void disableMotors();
     bool motorsEnabled() const;
+    void setCurrentPositionAsZero();
     
     // Accessors for diagnostics
     std::array<float, NUM_STEPPERS> getCurrentPositions() const;
@@ -22,32 +24,28 @@ public:
 private:
     MotorController();
     
-    // PID control constants (tunable per motor if needed)
-    static constexpr float KP = 2.0f;      // Proportional gain
-    static constexpr float KI = 0.05f;     // Integral gain
-    static constexpr float KD = 0.1f;      // Derivative gain
-    static constexpr float MAX_VELOCITY = 45.0f;  // degrees/sec max
-    static constexpr float MAX_ACCELERATION = 90.0f; // degrees/sec^2 max
-    static constexpr float INTERPOLATION_TIME_S = 1.0f;  // time to reach target (seconds)
-    static constexpr float POSITION_TOLERANCE = 0.5f; // degrees
+    // Open-loop motion constants (motor shaft degrees).
+    static constexpr float MAX_MOTOR_SPEED_DEG_PER_S = 720.0f;
+    static constexpr float POSITION_TOLERANCE_DEG = 0.05f;
+    static constexpr uint32_t STEP_PULSE_HIGH_US = 2;
+    static constexpr uint32_t STEP_PULSE_LOW_US = 2;
     
     // State tracking
-    std::array<float, NUM_STEPPERS> current_positions_{};
-    std::array<float, NUM_STEPPERS> current_velocities_{};
-    std::array<float, NUM_STEPPERS> target_positions_{};
-    std::array<float, NUM_STEPPERS> interpolated_targets_{};
-    std::array<float, NUM_STEPPERS> last_target_positions_{};
-    std::array<float, NUM_STEPPERS> position_errors_{};
-    std::array<float, NUM_STEPPERS> error_integral_{};
-    std::array<float, NUM_STEPPERS> last_errors_{};
-    
-    // Interpolation state
-    float interpolation_timer_ = 0.0f;
+    std::array<float, NUM_STEPPERS> current_positions_{};    // motor-shaft deg
+    std::array<float, NUM_STEPPERS> current_velocities_{};   // motor-shaft deg/s
+    std::array<float, NUM_STEPPERS> target_positions_{};     // motor-shaft deg
+    std::array<float, NUM_STEPPERS> position_errors_{};      // target-current deg
+    std::array<int32_t, NUM_STEPPERS> current_steps_{};
+    std::array<int32_t, NUM_STEPPERS> target_steps_{};
+    std::array<int32_t, NUM_STEPPERS> zero_offsets_steps_{};
+
     bool is_interpolating_ = false;
     bool enabled_ = false;
     
     // Helper methods
-    float calculatePIDOutput(uint8_t motor_index, float error);
-    void updateInterpolation(float dt);
-    void updateVelocities(float dt);
+    static float stepsToDegrees(int32_t steps);
+    static int32_t degreesToSteps(float degrees);
+    void pulseStepPin(uint8_t motor_index);
+    void setupStepPins();
+    void updateVelocitiesFromStepDelta(const std::array<int32_t, NUM_STEPPERS>& step_delta, float dt);
 };

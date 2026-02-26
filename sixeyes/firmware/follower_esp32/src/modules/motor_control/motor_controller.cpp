@@ -2,172 +2,157 @@
 #include <Arduino.h>
 #include <algorithm>
 
+namespace {
+constexpr float kDegreesPerStep =
+    360.0f / (TMC2209_FULL_STEPS_PER_REV * TMC2209_MICROSTEPS);
+}
+
 MotorController &MotorController::instance() {
     static MotorController inst;
     return inst;
 }
 
 MotorController::MotorController() {
-    // Initialize arrays
     current_positions_.fill(0.0f);
     current_velocities_.fill(0.0f);
     target_positions_.fill(0.0f);
-    interpolated_targets_.fill(0.0f);
-    last_target_positions_.fill(0.0f);
     position_errors_.fill(0.0f);
-    error_integral_.fill(0.0f);
-    last_errors_.fill(0.0f);
+    current_steps_.fill(0);
+    target_steps_.fill(0);
+    zero_offsets_steps_.fill(0);
 }
 
 void MotorController::init() {
-    Serial.println("MotorController: init with closed-loop control and interpolation");
-    Serial.println("  - PID gains: Kp=2.0, Ki=0.05, Kd=0.1");
-    Serial.println("  - Max velocity: 45.0 deg/sec");
-    Serial.println("  - Interpolation: 1.0 sec S-curve");
-    Serial.println("  - Update frequency: controlled by MotorControlScheduler");
+    setupStepPins();
+    Serial.println("MotorController: init open-loop step executor (no encoder feedback)");
+    Serial.print("  - Deg/step: ");
+    Serial.println(kDegreesPerStep, 6);
+    Serial.print("  - Max motor speed (deg/s): ");
+    Serial.println(MAX_MOTOR_SPEED_DEG_PER_S, 1);
 }
 
 void MotorController::setAbsoluteTargets(const std::array<float, NUM_STEPPERS> &targets) {
-    // Check if targets have changed significantly
-    bool targets_changed = false;
     for (int i = 0; i < NUM_STEPPERS; ++i) {
-        if (std::abs(targets[i] - target_positions_[i]) > POSITION_TOLERANCE) {
-            targets_changed = true;
-            break;
-        }
-    }
-    
-    if (targets_changed) {
-        target_positions_ = targets;
-        last_target_positions_ = current_positions_;  // Start interpolation from current position
-        interpolation_timer_ = 0.0f;
-        is_interpolating_ = true;
-        
-        Serial.println("MotorController: new targets received, starting interpolation");
+        target_positions_[i] = targets[i];
+        target_steps_[i] = degreesToSteps(target_positions_[i]);
+        position_errors_[i] = target_positions_[i] - current_positions_[i];
     }
 }
 
-void MotorController::updateInterpolation(float dt) {
-    if (!is_interpolating_) {
-        interpolated_targets_ = target_positions_;
-        return;
-    }
-    
-    interpolation_timer_ += dt;
-    float progress = std::min(1.0f, interpolation_timer_ / INTERPOLATION_TIME_S);
-    
-    // S-curve interpolation for smooth acceleration/deceleration
-    // Using ease-in-out cubic: t^2 * (3 - 2*t)
-    float t = progress;
-    float smoothed = t * t * (3.0f - 2.0f * t);
-    
-    for (int i = 0; i < NUM_STEPPERS; ++i) {
-        interpolated_targets_[i] = 
-            last_target_positions_[i] + 
-            (target_positions_[i] - last_target_positions_[i]) * smoothed;
-    }
-    
-    // Check if interpolation is complete
-    if (progress >= 1.0f) {
-        is_interpolating_ = false;
-        interpolated_targets_ = target_positions_;
-        Serial.println("MotorController: interpolation complete");
+float MotorController::stepsToDegrees(int32_t steps) {
+    return static_cast<float>(steps) * kDegreesPerStep;
+}
+
+int32_t MotorController::degreesToSteps(float degrees) {
+    const float steps_f = degrees / kDegreesPerStep;
+    return static_cast<int32_t>(lroundf(steps_f));
+}
+
+void MotorController::setupStepPins() {
+    for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+        pinMode(TMC2209_STEP_PINS[i], OUTPUT);
+        pinMode(TMC2209_DIR_PINS[i], OUTPUT);
+        digitalWrite(TMC2209_STEP_PINS[i], LOW);
+        digitalWrite(TMC2209_DIR_PINS[i], LOW);
     }
 }
 
-void MotorController::updateVelocities(float dt) {
-    if (dt <= 0.0f) return;
-    
-    for (int i = 0; i < NUM_STEPPERS; ++i) {
-        float delta_pos = current_positions_[i] - last_errors_[i];  // Use last position for derivative
-        current_velocities_[i] = delta_pos / dt;
-        
-        // Clamp velocity to max
-        current_velocities_[i] = std::max(-MAX_VELOCITY, 
-                                          std::min(MAX_VELOCITY, current_velocities_[i]));
-    }
+void MotorController::pulseStepPin(uint8_t motor_index) {
+    digitalWrite(TMC2209_STEP_PINS[motor_index], HIGH);
+    delayMicroseconds(STEP_PULSE_HIGH_US);
+    digitalWrite(TMC2209_STEP_PINS[motor_index], LOW);
+    delayMicroseconds(STEP_PULSE_LOW_US);
 }
 
-float MotorController::calculatePIDOutput(uint8_t motor_index, float error) {
-    if (motor_index >= NUM_STEPPERS) return 0.0f;
-    
-    // Proportional term
-    float p_term = KP * error;
-    
-    // Integral term (with anti-windup)
-    error_integral_[motor_index] += error * (1.0f / CONTROL_LOOP_HZ);
-    error_integral_[motor_index] = std::max(-10.0f, std::min(10.0f, error_integral_[motor_index]));
-    float i_term = KI * error_integral_[motor_index];
-    
-    // Derivative term
-    float d_error = error - last_errors_[motor_index];
-    float d_term = KD * d_error * CONTROL_LOOP_HZ;  // Scale by loop rate
-    
-    last_errors_[motor_index] = error;
-    
-    // Combine and saturate output
-    float output = p_term + i_term + d_term;
-    output = std::max(-100.0f, std::min(100.0f, output));  // Output limits (0-100% PWM equivalent)
-    
-    return output;
-}
-
-void MotorController::update() {
-    if (!enabled_) {
+void MotorController::updateVelocitiesFromStepDelta(const std::array<int32_t, NUM_STEPPERS>& step_delta, float dt) {
+    if (dt <= 0.0f) {
         current_velocities_.fill(0.0f);
         return;
     }
-    
-    // Calculate time delta (assuming called at CONTROL_LOOP_HZ)
-    static unsigned long last_update_ms = 0;
-    unsigned long now_ms = millis();
-    float dt = (now_ms - last_update_ms) / 1000.0f;
-    last_update_ms = now_ms;
-    
-    // Clamp dt to reasonable range (prevent overflow on first call)
-    if (dt > 0.1f) dt = 0.01f;  // Max 10ms expected at 100Hz, floor at 1ms
-    if (dt < 0.001f) dt = 0.001f;
-    
-    // Update interpolation trajectory
-    updateInterpolation(dt);
-    
-    // Closed-loop control: compute position error and PID output
-    for (int i = 0; i < NUM_STEPPERS; ++i) {
-        // Error is difference between interpolated target and current position
-        position_errors_[i] = interpolated_targets_[i] - current_positions_[i];
-        
-        // Calculate PID control output
-        float pid_output = calculatePIDOutput(i, position_errors_[i]);
-        
-        // Update position based on control signal
-        // For stepper motors, pid_output represents desired velocity in degrees/sec
-        float velocity_cmd = pid_output * (MAX_VELOCITY / 100.0f);  // Scale from 0-100 to velocity range
-        
-        // Integrate velocity to position
-        current_positions_[i] += velocity_cmd * dt;
+    for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+        current_velocities_[i] = stepsToDegrees(step_delta[i]) / dt;
     }
-    
-    // Update velocity tracking
-    updateVelocities(dt);
+}
+
+void MotorController::update() {
+    static unsigned long last_update_us = 0;
+    const unsigned long now_us = micros();
+    float dt = 1.0f / static_cast<float>(CONTROL_LOOP_HZ);
+
+    if (last_update_us != 0) {
+        dt = static_cast<float>(now_us - last_update_us) / 1000000.0f;
+        if (dt < 0.0005f) dt = 0.0005f;
+        if (dt > 0.05f) dt = 1.0f / static_cast<float>(CONTROL_LOOP_HZ);
+    }
+    last_update_us = now_us;
+
+    std::array<int32_t, NUM_STEPPERS> step_delta{};
+    step_delta.fill(0);
+
+    if (!enabled_) {
+        current_velocities_.fill(0.0f);
+        for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+            position_errors_[i] = target_positions_[i] - current_positions_[i];
+        }
+        return;
+    }
+
+    const float max_steps_f = (MAX_MOTOR_SPEED_DEG_PER_S / kDegreesPerStep) * dt;
+    const int32_t max_steps_this_cycle = std::max<int32_t>(1, static_cast<int32_t>(floorf(max_steps_f)));
+
+    for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+        const int32_t error_steps = target_steps_[i] - current_steps_[i];
+        int32_t steps_to_move = std::min<int32_t>(std::abs(error_steps), max_steps_this_cycle);
+
+        if (steps_to_move == 0) {
+            continue;
+        }
+
+        const bool direction_positive = error_steps > 0;
+        digitalWrite(TMC2209_DIR_PINS[i], direction_positive ? HIGH : LOW);
+
+        for (int32_t s = 0; s < steps_to_move; ++s) {
+            pulseStepPin(static_cast<uint8_t>(i));
+        }
+
+        const int32_t signed_step_move = direction_positive ? steps_to_move : -steps_to_move;
+        current_steps_[i] += signed_step_move;
+        step_delta[i] = signed_step_move;
+    }
+
+    updateVelocitiesFromStepDelta(step_delta, dt);
+
+    for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+        current_positions_[i] = stepsToDegrees(current_steps_[i] - zero_offsets_steps_[i]);
+        target_positions_[i] = stepsToDegrees(target_steps_[i] - zero_offsets_steps_[i]);
+        position_errors_[i] = target_positions_[i] - current_positions_[i];
+    }
 }
 
 void MotorController::enableMotors() {
     enabled_ = true;
-    // Reset integrator state when enabling
-    error_integral_.fill(0.0f);
-    last_errors_.fill(0.0f);
     Serial.println("MotorController: motors enabled");
 }
 
 void MotorController::disableMotors() {
     enabled_ = false;
     current_velocities_.fill(0.0f);
-    error_integral_.fill(0.0f);
     Serial.println("MotorController: motors disabled");
 }
 
 bool MotorController::motorsEnabled() const { 
     return enabled_; 
+}
+
+void MotorController::setCurrentPositionAsZero() {
+    for (size_t i = 0; i < NUM_STEPPERS; ++i) {
+        zero_offsets_steps_[i] = current_steps_[i];
+        target_steps_[i] = current_steps_[i];
+        current_positions_[i] = 0.0f;
+        target_positions_[i] = 0.0f;
+        position_errors_[i] = 0.0f;
+    }
+    Serial.println("MotorController: software zero reference set to current position");
 }
 
 std::array<float, NUM_STEPPERS> MotorController::getCurrentPositions() const {

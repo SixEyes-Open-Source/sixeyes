@@ -281,6 +281,16 @@ bool UartJsonParser::parseLine(const char* json_line) {
             dispatchMessage(msg);
             break;
         }
+
+        case MessageType::HOME_ZERO: {
+            HomeZeroMessage msg;
+            msg.seq = base_msg.seq;
+            msg.timestamp_ms = base_msg.timestamp_ms;
+            parse_success = true;
+            message_count_++;
+            dispatchMessage(msg);
+            break;
+        }
         
         case MessageType::HEARTBEAT: {
             HeartbeatMessage msg;
