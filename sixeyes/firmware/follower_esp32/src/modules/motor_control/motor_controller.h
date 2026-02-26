@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <cmath>
+#include "esp_timer.h"
 #include "modules/config/board_config.h"
 #include "modules/drivers/tmc2209/tmc2209_config.h"
 
@@ -38,9 +39,12 @@ private:
     
     // Open-loop motion constants (motor shaft degrees).
     static constexpr float MAX_MOTOR_SPEED_DEG_PER_S = 720.0f;
+    static constexpr float MAX_MOTOR_ACCEL_DEG_PER_S2 = 2400.0f;
+    static constexpr float MAX_MOTOR_JERK_DEG_PER_S3 = 30000.0f;
     static constexpr float POSITION_TOLERANCE_DEG = 0.05f;
     static constexpr uint32_t STEP_PULSE_HIGH_US = 2;
     static constexpr uint32_t STEP_PULSE_LOW_US = 2;
+    static constexpr uint32_t STEP_TIMER_PERIOD_US = 100;
     static constexpr float HOMING_SEEK_SPEED_DEG_PER_S = 180.0f;
     static constexpr float HOMING_APPROACH_SPEED_DEG_PER_S = 60.0f;
     static constexpr int32_t HOMING_SEEK_MAX_STEPS = 30000;
@@ -57,6 +61,14 @@ private:
     std::array<int32_t, NUM_STEPPERS> target_steps_{};
     std::array<int32_t, NUM_STEPPERS> zero_offsets_steps_{};
     std::array<int32_t, NUM_STEPPERS> homing_latched_zero_steps_{};
+    std::array<float, NUM_STEPPERS> planner_velocity_steps_s_{};
+    std::array<float, NUM_STEPPERS> planner_accel_steps_s2_{};
+
+    portMUX_TYPE motion_lock_ = portMUX_INITIALIZER_UNLOCKED;
+    volatile float commanded_step_rate_steps_s_[NUM_STEPPERS] = {0};
+    volatile float step_phase_accumulator_[NUM_STEPPERS] = {0};
+    volatile int32_t step_position_isr_[NUM_STEPPERS] = {0};
+    esp_timer_handle_t step_timer_ = nullptr;
 
     bool is_interpolating_ = false;
     bool enabled_ = false;
@@ -72,6 +84,13 @@ private:
     // Helper methods
     static float stepsToDegrees(int32_t steps);
     static int32_t degreesToSteps(float degrees);
+    static void stepTimerCallback(void* arg);
+    void initStepTimer();
+    void setCommandedStepRate(uint8_t motor_index, float steps_per_s);
+    void setAllCommandedRatesToZero();
+    void syncIsrStepPositionFromCurrent();
+    void updatePlannerTargets(float dt);
+    void enforceShoulderAntiPhaseLock();
     void pulseStepPin(uint8_t motor_index);
     void setupStepPins();
     void updateVelocitiesFromStepDelta(const std::array<int32_t, NUM_STEPPERS>& step_delta, float dt);
