@@ -9,6 +9,7 @@
 #include "modules/util/logging.h"
 #include "modules/motor_control/motor_controller.h"
 #include "modules/servo_control/servo_manager.h"
+#include "modules/safety/fault_manager.h"
 
 namespace {
 constexpr size_t TELEOP_INPUT_COUNT = 6;
@@ -171,6 +172,24 @@ bool TeleoperationHandler::handleCommand(const char* cmd, const JsonDocument& do
   if (strcmp(cmd, "HOME_ZERO") == 0) {
     MotorController::instance().setCurrentPositionAsZero();
     Logging::info("TeleoperationHandler: HOME_ZERO applied");
+    return true;
+  }
+
+  if (strcmp(cmd, "ENABLE_MOTORS") == 0) {
+    const bool enable = doc["enable"].is<bool>() ? doc["enable"].as<bool>() : false;
+    if (enable) {
+      MotorController::instance().enableMotors();
+      Logging::info("TeleoperationHandler: ENABLE_MOTORS=true");
+    } else {
+      MotorController::instance().disableMotors();
+      Logging::info("TeleoperationHandler: ENABLE_MOTORS=false");
+    }
+    return true;
+  }
+
+  if (strcmp(cmd, "RESET_FAULT") == 0) {
+    FaultManager::instance().clear();
+    Logging::info("TeleoperationHandler: RESET_FAULT applied");
     return true;
   }
 
