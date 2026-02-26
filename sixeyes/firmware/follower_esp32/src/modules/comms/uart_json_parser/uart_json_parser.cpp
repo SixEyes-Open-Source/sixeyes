@@ -291,6 +291,22 @@ bool UartJsonParser::parseLine(const char* json_line) {
             dispatchMessage(msg);
             break;
         }
+
+        case MessageType::HOME_STALLGUARD: {
+            HomeStallGuardMessage msg;
+            msg.seq = base_msg.seq;
+            msg.timestamp_ms = base_msg.timestamp_ms;
+            if (doc.containsKey("motor_mask")) {
+                msg.motor_mask = doc["motor_mask"].as<uint8_t>();
+            }
+            if (doc.containsKey("sensitivity")) {
+                msg.sensitivity = doc["sensitivity"].as<uint8_t>();
+            }
+            parse_success = true;
+            message_count_++;
+            dispatchMessage(msg);
+            break;
+        }
         
         case MessageType::HEARTBEAT: {
             HeartbeatMessage msg;

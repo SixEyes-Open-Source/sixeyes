@@ -106,6 +106,13 @@ def _arg_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("home", help="RESET_FAULT + ENABLE_MOTORS(true) + HOME_ZERO")
+    sg = sub.add_parser(
+        "stallguard-home",
+        help="RESET_FAULT + ENABLE_MOTORS(true) + HOME_STALLGUARD (hybrid coarse homing)",
+    )
+    sg.add_argument("--motor-mask", type=lambda v: int(v, 0), default=0x0F, help="Bitmask for motors (default: 0x0F)")
+    sg.add_argument("--sensitivity", type=int, default=100, help="StallGuard sensitivity 0-255 (default: 100)")
+    sg.add_argument("--homing-hold-seconds", type=float, default=12.0, help="Heartbeat hold duration while homing runs")
 
     teleop = sub.add_parser("teleop-ready", help="Prepare teleoperation run (RESET_FAULT + ENABLE_MOTORS)")
     teleop.add_argument("--no-enable", action="store_true", help="Skip ENABLE_MOTORS command")
@@ -123,6 +130,20 @@ def _run_home(ctrl: OperatorControl, seq: int) -> int:
     ctrl.send_json({"cmd": "RESET_FAULT", "seq": seq})
     ctrl.send_json({"cmd": "ENABLE_MOTORS", "seq": seq + 1, "enable": True})
     ctrl.send_json({"cmd": "HOME_ZERO", "seq": seq + 2})
+    return seq + 3
+
+
+def _run_stallguard_home(ctrl: OperatorControl, seq: int, motor_mask: int, sensitivity: int) -> int:
+    ctrl.send_json({"cmd": "RESET_FAULT", "seq": seq})
+    ctrl.send_json({"cmd": "ENABLE_MOTORS", "seq": seq + 1, "enable": True})
+    ctrl.send_json(
+        {
+            "cmd": "HOME_STALLGUARD",
+            "seq": seq + 2,
+            "motor_mask": motor_mask & 0x0F,
+            "sensitivity": max(0, min(255, sensitivity)),
+        }
+    )
     return seq + 3
 
 
@@ -150,6 +171,13 @@ def main() -> int:
         if args.command == "home":
             _ = _run_home(ctrl, seq)
             print("[INFO] Home sequence sent (software zero at current pose)")
+        elif args.command == "stallguard-home":
+            _ = _run_stallguard_home(ctrl, seq, args.motor_mask, args.sensitivity)
+            print(
+                "[INFO] StallGuard homing sequence sent "
+                f"(mask=0x{args.motor_mask & 0x0F:02X}, sensitivity={max(0, min(255, args.sensitivity))})"
+            )
+            args.hold_seconds = max(args.hold_seconds, args.homing_hold_seconds)
         elif args.command == "teleop-ready":
             _ = _run_ready(ctrl, seq, enable=not args.no_enable)
             print("[INFO] Teleoperation-ready sequence sent")

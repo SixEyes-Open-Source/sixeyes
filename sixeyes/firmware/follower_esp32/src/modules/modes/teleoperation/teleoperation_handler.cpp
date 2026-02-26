@@ -175,6 +175,17 @@ bool TeleoperationHandler::handleCommand(const char* cmd, const JsonDocument& do
     return true;
   }
 
+  if (strcmp(cmd, "HOME_STALLGUARD") == 0) {
+    const uint8_t motor_mask = doc["motor_mask"].is<uint8_t>() ? doc["motor_mask"].as<uint8_t>() : 0x0F;
+    const uint8_t sensitivity = doc["sensitivity"].is<uint8_t>() ? doc["sensitivity"].as<uint8_t>() : TMC2209_SGTHRS_DEFAULT;
+    if (!MotorController::instance().startStallGuardHoming(motor_mask, sensitivity)) {
+      Logging::warn("TeleoperationHandler: HOME_STALLGUARD failed to start");
+      return false;
+    }
+    Logging::infof("TeleoperationHandler: HOME_STALLGUARD started mask=0x%02X sensitivity=%u", motor_mask, sensitivity);
+    return true;
+  }
+
   if (strcmp(cmd, "ENABLE_MOTORS") == 0) {
     const bool enable = doc["enable"].is<bool>() ? doc["enable"].as<bool>() : false;
     if (enable) {

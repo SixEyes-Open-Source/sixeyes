@@ -60,6 +60,14 @@ static void handleHomeZero(const BaseMessage& msg) {
   MotorController::instance().setCurrentPositionAsZero();
 }
 
+static void handleHomeStallGuard(const BaseMessage& msg) {
+  const HomeStallGuardMessage& m = static_cast<const HomeStallGuardMessage&>(msg);
+  Logging::infof("VLA: HOME_STALLGUARD requested mask=0x%02X sensitivity=%u", m.motor_mask, m.sensitivity);
+  if (!MotorController::instance().startStallGuardHoming(m.motor_mask, m.sensitivity)) {
+    Logging::warn("VLA: HOME_STALLGUARD failed to start");
+  }
+}
+
 static void handleParseError(const char* error, uint32_t line) {
   Logging::warnf("VLA: JSON parse error on line %lu", static_cast<unsigned long>(line));
   Logging::warn(error);
@@ -76,6 +84,7 @@ void VLACommandHandler::init() {
   parser.registerHandler(MessageType::HEARTBEAT, handleHeartbeat);
   parser.registerHandler(MessageType::ENABLE_MOTORS, handleEnableMotors);
   parser.registerHandler(MessageType::HOME_ZERO, handleHomeZero);
+  parser.registerHandler(MessageType::HOME_STALLGUARD, handleHomeStallGuard);
   
   parser.setErrorHandler(handleParseError);
   
