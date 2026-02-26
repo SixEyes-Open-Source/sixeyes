@@ -33,6 +33,15 @@ class BridgeStats:
     telemetry_in: int = 0
     telemetry_parse_errors: int = 0
     last_seq: Optional[int] = None
+    seq_gaps: int = 0
+    out_of_order: int = 0
+    source_latency_ms_avg: float = 0.0
+    source_latency_ms_max: float = 0.0
+    interarrival_ms_avg: float = 0.0
+    interarrival_jitter_ms_avg: float = 0.0
+    last_leader_ts_ms: Optional[int] = None
+    last_rx_monotonic_s: Optional[float] = None
+    last_interarrival_ms: Optional[float] = None
 
 
 class TeleoperationBridge:
@@ -57,6 +66,45 @@ class TeleoperationBridge:
         self.lock = threading.Lock()
         self.forward_thread: Optional[threading.Thread] = None
         self.telemetry_thread: Optional[threading.Thread] = None
+
+    @staticmethod
+    def _ewma(prev: float, value: float, alpha: float = 0.1) -> float:
+        if prev <= 0.0:
+            return value
+        return (alpha * value) + ((1.0 - alpha) * prev)
+
+    def _update_stream_metrics(self, payload: dict) -> None:
+        seq_val = payload.get("seq")
+        ts_val = payload.get("ts")
+        now_ms = int(time.time() * 1000)
+        now_mono = time.monotonic()
+
+        with self.lock:
+            if isinstance(seq_val, int):
+                if self.stats.last_seq is not None:
+                    if seq_val <= self.stats.last_seq:
+                        self.stats.out_of_order += 1
+                    elif seq_val > (self.stats.last_seq + 1):
+                        self.stats.seq_gaps += (seq_val - self.stats.last_seq - 1)
+                self.stats.last_seq = seq_val
+
+            if isinstance(ts_val, int):
+                latency = float(max(0, now_ms - ts_val))
+                self.stats.source_latency_ms_avg = self._ewma(self.stats.source_latency_ms_avg, latency)
+                if latency > self.stats.source_latency_ms_max:
+                    self.stats.source_latency_ms_max = latency
+                self.stats.last_leader_ts_ms = ts_val
+
+            if self.stats.last_rx_monotonic_s is not None:
+                interarrival_ms = (now_mono - self.stats.last_rx_monotonic_s) * 1000.0
+                self.stats.interarrival_ms_avg = self._ewma(self.stats.interarrival_ms_avg, interarrival_ms)
+
+                if self.stats.last_interarrival_ms is not None:
+                    jitter_ms = abs(interarrival_ms - self.stats.last_interarrival_ms)
+                    self.stats.interarrival_jitter_ms_avg = self._ewma(self.stats.interarrival_jitter_ms_avg, jitter_ms)
+
+                self.stats.last_interarrival_ms = interarrival_ms
+            self.stats.last_rx_monotonic_s = now_mono
 
     def connect(self) -> bool:
         try:
@@ -144,12 +192,13 @@ class TeleoperationBridge:
                 if payload is None:
                     continue
 
+                self._update_stream_metrics(payload)
+
                 encoded = (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
                 self.follower_serial.write(encoded)
 
                 with self.lock:
                     self.stats.packets_forwarded += 1
-                    self.stats.last_seq = int(payload.get("seq", self.stats.last_seq or 0))
 
                 if self.log_handle:
                     log_record = {
@@ -259,6 +308,11 @@ class TeleoperationBridge:
             print(f"  Telemetry in:      {self.stats.telemetry_in}")
             print(f"  Telemetry parse errors: {self.stats.telemetry_parse_errors}")
             print(f"  Last sequence:     {self.stats.last_seq}")
+            print(f"  Sequence gaps:     {self.stats.seq_gaps}")
+            print(f"  Out-of-order:      {self.stats.out_of_order}")
+            print(f"  Source latency avg/max (ms): {self.stats.source_latency_ms_avg:.2f} / {self.stats.source_latency_ms_max:.2f}")
+            print(f"  Interarrival avg (ms): {self.stats.interarrival_ms_avg:.2f}")
+            print(f"  Jitter avg (ms):   {self.stats.interarrival_jitter_ms_avg:.2f}")
             print()
 
 
