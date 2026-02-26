@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 #include "modules/config/board_config.h"
+#include "modules/drivers/tmc2209/tmc2209_config.h"
 
 /**
  * @file uart_json_messages.h
@@ -34,6 +35,8 @@ enum class MessageType : uint8_t {
     ENABLE_MOTORS = 3,     // Enable/disable motor outputs
     RESET_FAULT = 4,       // Clear fault state
     TUNE_PID = 5,          // Update PID gains
+    HOME_ZERO = 6,         // Set current step-counter position as software zero
+    HOME_STALLGUARD = 7,   // Run StallGuard-based homing sequence
     
     // Configuration messages
     CONFIG_PARAM = 10,     // Set config parameter
@@ -70,6 +73,8 @@ inline MessageType cmdStringToType(const char* cmd) {
     if (strcmp(cmd, "ENABLE_MOTORS") == 0) return MessageType::ENABLE_MOTORS;
     if (strcmp(cmd, "RESET_FAULT") == 0) return MessageType::RESET_FAULT;
     if (strcmp(cmd, "TUNE_PID") == 0) return MessageType::TUNE_PID;
+    if (strcmp(cmd, "HOME_ZERO") == 0) return MessageType::HOME_ZERO;
+    if (strcmp(cmd, "HOME_STALLGUARD") == 0) return MessageType::HOME_STALLGUARD;
     if (strcmp(cmd, "CONFIG_PARAM") == 0) return MessageType::CONFIG_PARAM;
     if (strcmp(cmd, "CONFIG_SAVE") == 0) return MessageType::CONFIG_SAVE;
     if (strcmp(cmd, "CONFIG_RESET") == 0) return MessageType::CONFIG_RESET;
@@ -97,6 +102,8 @@ inline const char* typeToString(MessageType type) {
         case MessageType::ENABLE_MOTORS: return "ENABLE_MOTORS";
         case MessageType::RESET_FAULT: return "RESET_FAULT";
         case MessageType::TUNE_PID: return "TUNE_PID";
+        case MessageType::HOME_ZERO: return "HOME_ZERO";
+        case MessageType::HOME_STALLGUARD: return "HOME_STALLGUARD";
         case MessageType::CONFIG_PARAM: return "CONFIG_PARAM";
         case MessageType::CONFIG_SAVE: return "CONFIG_SAVE";
         case MessageType::CONFIG_RESET: return "CONFIG_RESET";
@@ -192,6 +199,27 @@ struct TunePidMessage : public BaseMessage {
     bool antiwindup = true;   // Enable anti-windup for integrator
     
     TunePidMessage() : BaseMessage(MessageType::TUNE_PID) {}
+};
+
+/**
+ * @struct HomeZeroMessage
+ * Command: Set the current motor step counters as software zero reference
+ * Example: {"cmd":"HOME_ZERO","seq":42}
+ */
+struct HomeZeroMessage : public BaseMessage {
+    HomeZeroMessage() : BaseMessage(MessageType::HOME_ZERO) {}
+};
+
+/**
+ * @struct HomeStallGuardMessage
+ * Command: Run StallGuard-based homing routine.
+ * Example: {"cmd":"HOME_STALLGUARD","seq":42,"motor_mask":15,"sensitivity":100}
+ */
+struct HomeStallGuardMessage : public BaseMessage {
+    uint8_t motor_mask = 0x0F;                 // bit0..bit3 select motors
+    uint8_t sensitivity = TMC2209_SGTHRS_DEFAULT;
+
+    HomeStallGuardMessage() : BaseMessage(MessageType::HOME_STALLGUARD) {}
 };
 
 /**

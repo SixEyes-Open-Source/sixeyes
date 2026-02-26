@@ -16,6 +16,22 @@
 // J4 (Elbow):      GPIO21
 static const uint8_t TMC2209_PDN_PINS[TMC2209_NUM_DRIVERS] = { 7, 11, 15, 21 };
 
+// STEP / DIR / EN pins per motor channel (Follower ESP32-S3)
+// J1 Base:       STEP=4,  DIR=5,  EN=6
+// J2 Shoulder A: STEP=8,  DIR=9,  EN=10
+// J3 Shoulder B: STEP=12, DIR=13, EN=14
+// J4 Elbow:      STEP=16, DIR=17, EN=18
+static const uint8_t TMC2209_STEP_PINS[TMC2209_NUM_DRIVERS] = { 4, 8, 12, 16 };
+static const uint8_t TMC2209_DIR_PINS[TMC2209_NUM_DRIVERS]  = { 5, 9, 13, 17 };
+static const uint8_t TMC2209_EN_PINS[TMC2209_NUM_DRIVERS]   = { 6, 10, 14, 18 };
+
+// TMC2209 EN is active LOW on common stepper carrier wiring.
+static constexpr bool TMC2209_EN_ACTIVE_LOW = true;
+
+// Motion conversion constants used by open-loop angle->step mapping.
+static constexpr float TMC2209_FULL_STEPS_PER_REV = 200.0f;
+static constexpr float TMC2209_MICROSTEPS = 16.0f;
+
 // Sense resistor value used by TMC drivers (ohms)
 // SixEyes uses 0.11 ohm sense resistors on all stepper channels
 #ifndef TMC2209_R_SENSE

@@ -110,11 +110,14 @@ void TMC2209Driver::configureMotor(uint8_t motor_index, uint16_t rms_current_ma)
 }
 
 bool TMC2209Driver::readDrvStatus(uint8_t motor_index, uint32_t &status) {
-    // DRV_STATUS (0x6F) contains:
-    // - Bit 6: SG_RESULT[0] (stall flag)
-    // - Bit 24: STALL (actual stall detection)
-    // - Other diagnostic bits for temperature, short-circuit, etc.
-    return readRegister(motor_index, TMC2209_REG_DRVSTATUS, status, 50);
+    if (motor_index >= TMC2209_NUM_DRIVERS || !drivers[motor_index]) {
+        return false;
+    }
+
+    selectDriver(motor_index);
+    status = drivers[motor_index]->DRV_STATUS();
+    deselectAll();
+    return true;
 }
 
 bool TMC2209Driver::isStalled(uint8_t motor_index) {
@@ -136,10 +139,11 @@ bool TMC2209Driver::readIOIN(uint8_t motor_index, uint32_t &ioin) {
 void TMC2209Driver::enableStallGuard(uint8_t motor_index, uint8_t sensitivity) {
     if (motor_index >= TMC2209_NUM_DRIVERS) return;
     if (!drivers[motor_index]) return;
-    
-    // Note: TMCStepper uses different API for StallGuard configuration
-    // This requires direct register manipulation in future versions
-    // For now, log the configuration
+
+    selectDriver(motor_index);
+    drivers[motor_index]->SGTHRS(sensitivity);
+    deselectAll();
+
     Serial.print("TMC2209Driver: StallGuard enabled on motor ");
     Serial.print(motor_index);
     Serial.print(" with sensitivity ");
@@ -147,8 +151,12 @@ void TMC2209Driver::enableStallGuard(uint8_t motor_index, uint8_t sensitivity) {
 }
 
 void TMC2209Driver::disableStallGuard(uint8_t motor_index) {
-    // Disable by setting threshold to 0
-    enableStallGuard(motor_index, 0);
+    if (motor_index >= TMC2209_NUM_DRIVERS) return;
+    if (!drivers[motor_index]) return;
+
+    selectDriver(motor_index);
+    drivers[motor_index]->SGTHRS(0);
+    deselectAll();
 }
 
 void TMC2209Driver::setCurrent(uint8_t motor_index, uint16_t milliamps) {

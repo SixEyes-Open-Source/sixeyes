@@ -1,6 +1,6 @@
 # SixEyes - 6-DOF Robotic Arm with ROS2 Integration
 
-A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedom robotic arm with distributed safety control via ROS2 on a laptop.
+An open-source, in-progress robotics platform for a 6-degree-of-freedom arm, spanning ESP32 firmware, ROS2 integration, teleoperation tooling, and hardware bring-up.
 
 ## Quick Links
 
@@ -45,7 +45,7 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 ✅ **Safety-Critical**: Dual heartbeat monitoring with <2.5 ms motor disable latency  
 ✅ **Real-Time Control**: 400 Hz FreeRTOS deterministic control loop  
 ✅ **Extensible**: JSON message protocol for future expansion  
-✅ **Production-Ready**: Comprehensive documentation and automated testing  
+🚧 **In Active Development**: Architecture and workflows are evolving as teleoperation and ROS2 integration mature  
 ✅ **Well-Tested**: Unit tests + hardware validation procedures  
 ✅ **CI/CD Ready**: GitHub Actions for automated builds and releases  
 
@@ -56,7 +56,7 @@ A production-ready ESP32-S3 firmware system for controlling a 6-degree-of-freedo
 | **VLA Inference** | Execute AI-planned tasks from laptop/ROS2 | Laptop ROS2 → Follower ESP32 | ✅ Active |
 | **Teleoperation** | Stream human-driven leader joint states for mirroring/data collection | Leader ESP32 → Laptop/Follower | 🚧 Phase 3 in progress |
 
-Current implementation includes `leader_esp32` JOINT_STATE streaming at 100 Hz, laptop bridge forwarding, and follower TELEMETRY_STATE stub responses.
+Current implementation includes `leader_esp32` JOINT_STATE streaming at 100 Hz, laptop bridge forwarding, teleoperation command handling on follower, and operator utilities for safe command sequencing.
 
 ### Choose Your Mode First (Important)
 
@@ -215,6 +215,14 @@ cd sixeyes/firmware/follower_esp32
    python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
    ```
 
+7. **Run operator workflow helper (optional, follower commands + heartbeat)**:
+   ```bash
+   cd sixeyes/tools
+   python operator_control.py --port COM6 teleop-ready
+   python operator_control.py --port COM6 home
+   python operator_control.py --port COM6 stallguard-home
+   ```
+
 ⏭️ **Next**: Read [Teleoperation Mode Architecture](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 
 ### For Hardware Assembly
@@ -280,6 +288,7 @@ cd sixeyes/firmware/follower_esp32
 
 ### 📋 References
 - [Datasheets & References](docs/references/) - TMC2209, hardware specs, technical references
+- [Firmware System Datasheet](docs/references/FIRMWARE_SYSTEM_DATASHEET.md) - IC-style firmware system snapshot (interfaces, safety, limits, maturity)
 
 ## Communication Protocols
 
@@ -372,7 +381,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | CI/CD Pipeline | ✅ Complete | 3 GitHub Actions workflows |
 | Hardware Validation | ✅ Available | Baseline + teleoperation checks documented |
 | ROS2 Integration | 🟡 Partial | Heartbeat path done; teleop ROS nodes need expansion |
-| Production Readiness | 🟡 Nearing | VLA path ready; full teleop integration pending |
+| Production Readiness | 🚧 In Progress | Core safety + control are advancing; end-to-end teleop and ROS2 workflows are still being completed |
 
 ## Current TODO (High Priority)
 

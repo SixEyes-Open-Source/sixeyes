@@ -1,4 +1,4 @@
-# ROS2 Heartbeat Integration - Implementation Complete ✓
+# ROS2 Heartbeat Integration - Implementation Status
 
 ## Dual-Mode Firmware Status (Feb 2026)
 
@@ -16,6 +16,13 @@ SixEyes firmware is now organized as **dual-mode**:
 - `leader_esp32` JOINT_STATE streaming at 100 Hz
 - Laptop bridge utility (`sixeyes/tools/teleoperation_bridge.py`)
 - Follower teleoperation stub that emits `TELEMETRY_STATE`
+
+### Recent Firmware Updates (Feb 2026)
+
+- Added teleoperation command handling for `ENABLE_MOTORS`, `RESET_FAULT`, `HOME_ZERO`, and `HOME_STALLGUARD`
+- Added operator utility workflow: `sixeyes/tools/operator_control.py` (`teleop-ready`, `home`, `stallguard-home`)
+- Implemented hybrid StallGuard homing flow (seek stall → backoff → re-approach)
+- Upgraded motor execution to timer-driven step generation with synchronized, accel/jerk-limited planning and shoulder anti-phase lock
 
 ## Project Status: Heartbeat Hooks Phase Complete
 
@@ -393,7 +400,7 @@ From ROS2 sending heartbeat to firmware enabling motors: **~7.5 ms** (3 cycles)
    - Success criteria
 
 3. **ros2_heartbeat_node.py** (400+ lines)
-   - Production-ready Python bridge
+   - Python bridge workflow for operator and integration testing
    - Thread-safe sender/receiver
    - Status callbacks for fault detection
    - CLI interface with diagnostics
@@ -451,22 +458,22 @@ The implementation ensures:
 
 ## Conclusion
 
-✅ **ROS2 Heartbeat Integration Complete**
+✅ **ROS2 heartbeat safety path is implemented and actively used**
 
-The firmware now implements a production-quality safety mechanism for distributed control with a laptop-based ROS2 safety node. The implementation is:
+The firmware includes a robust safety mechanism for distributed control with a laptop-based ROS2 safety node. The implementation is:
 
 - **Lean**: Only 534 new lines of code
 - **Safe**: Dual heartbeat checks, immediate motor shutdown
 - **Fast**: <3 ms latency from heartbeat to motor enable
 - **Robust**: Non-blocking, timeout detection, feedback loop
-- **Documented**: 3 comprehensive guides + Python example
-- **Tested**: Manual verification done, ready for hardware testing
+- **Documented**: Multiple guides + Python examples
+- **Validated**: Manual verification completed, with continued integration/hardware validation ongoing
 
-**Ready for**: Hardware bring-up, stress testing, and full ROS2 integration.
+**Next focus**: Hardware bring-up, stress testing, and full ROS2 + teleoperation integration.
 
 ---
 
 **Commit**: `2047362`  
-**Status**: ✅ Complete — Next: Hardware Validation  
+**Status**: 🚧 In Progress — Next: Hardware Validation + teleoperation integration hardening  
 **Risk Level**: Low  
 **Reversibility**: High (can disable ROS2 by passing nullptr to SafetyTask::init)

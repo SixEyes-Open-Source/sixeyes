@@ -1,8 +1,8 @@
 # SixEyes Teleoperation Mode - Firmware Architecture
 
-**Status**: Design proposal for teleoperation firmware mode (Leader-Follower-Laptop)  
-**Current scope**: Firmware currently implements VLA Inference mode only (Laptop → Follower)  
-**Next phase**: Implement teleoperation mode for VLA data collection
+**Status**: Active architecture + implementation guide for teleoperation firmware mode (Leader-Follower-Laptop)  
+**Current scope**: Dual-mode firmware is implemented with compile-time mode selection (`OPERATION_MODE`) and active teleoperation command path updates  
+**Next phase**: Complete follower telemetry/state streaming and end-to-end ROS2 teleoperation runtime
 
 ---
 
@@ -20,7 +20,7 @@ Follower ESP32
 Motor Control (PID)
 ```
 
-### Proposed Teleoperation Mode
+### Teleoperation Mode (Current Direction)
 ```
 Leader Arm (GPIO/Sensor/Potentiometers)
         ↓
@@ -45,9 +45,9 @@ Follower Arm (mirror motions)
 ├─────────────────────────────────────────────────────────┤
 │                                                           │
 │  Configuration Layer                                     │
-│  ├─ OPERATION_MODE setting (build-time + runtime)      │
+│  ├─ OPERATION_MODE setting (build-time)                 │
 │  ├─ Either VLA_INFERENCE or TELEOPERATION               │
-│  └─ Can swap between modes with config reset            │
+│  └─ Mode selected per firmware build                    │
 │                                                           │
 │  ┌─ VLA Inference Mode (Current) ──────────────────┐    │
 │  │ ├─ Heartbeat RX (ASCII: HB:0,N)                │    │
@@ -56,7 +56,7 @@ Follower Arm (mirror motions)
 │  │ └─ Control Loop: Apply target positions        │    │
 │  └──────────────────────────────────────────────────┘    │
 │                                                           │
-│  ┌─ Teleoperation Mode (Proposed) ─────────────────┐    │
+│  ┌─ Teleoperation Mode (In Progress) ──────────────┐    │
 │  │ ├─ Joint State RX (JSON: leader positions)     │    │
 │  │ ├─ Telemetry TX (JSON: follower positions)     │    │
 │  │ ├─ Acknowledgment (confirms receipt)            │    │
@@ -546,32 +546,30 @@ Mode Switching (Runtime, Phase 2+):
 ## Comparison: Current vs Proposed
 
 ### Current VLA Inference Mode
-✅ Complete implementation  
+✅ Core implementation active  
 ✅ 400 Hz control loop  
 ✅ Safety timeout: 500ms  
 ✅ JSON command protocol  
-✅ Motor PID control  
-✅ Comprehensive documentation  
+✅ Motor control + homing command support  
+🚧 Documentation and integration still being refined  
 
-### Proposed Teleoperation Mode
-⏳ Requires Phase 1 refactoring (~10h)  
-⏳ Requires Phase 2 implementation (~10h)  
+### Teleoperation Mode
+✅ Compile-time mode wiring in place  
+✅ Leader JOINT_STATE path and bridge forwarding in place  
+✅ Follower teleop command handling includes `ENABLE_MOTORS`, `RESET_FAULT`, `HOME_ZERO`, `HOME_STALLGUARD`  
 ⏳ Safety timeout: 100ms (tighter)  
-⏳ Will reuse motor control  
-⏳ New: Position mapper, sync monitor  
+⏳ Follower `TELEMETRY_STATE` expansion still pending  
+⏳ Position mapper + sync monitor still evolving  
 ⏳ New: Telemetry streaming (100 Hz)  
 
-**Total Effort**: ~20-30 hours engineering  
-**Risk Level**: Medium (new safety-critical components)  
-**Benefit**: Full teleoperation data collection capability  
+**Current Risk Level**: Medium (safety-critical coordination still under active iteration)  
+**Benefit**: Full teleoperation data collection capability once telemetry + ROS2 teleop runtime are finalized  
 
 ---
 
 ## Conclusion
 
-**Current Status**: ✅ VLA Inference mode fully implemented and production-ready  
+**Current Status**: 🚧 VLA + teleoperation firmware path is functional but still in active development  
 **Proposed Direction**: Dual-mode firmware supporting both VLA inference and teleoperation  
 **Architecture Pattern**: Mode-aware modular firmware with shared safety/control components  
-**Timeline**: 6-8 weeks for full teleoperation capability (if prioritized)  
-
-Would you like me to proceed with Phase 1 (refactoring) to prepare the codebase for dual-mode support?
+**Timeline**: Continue iterative hardening of teleoperation, telemetry, and ROS2 integration
