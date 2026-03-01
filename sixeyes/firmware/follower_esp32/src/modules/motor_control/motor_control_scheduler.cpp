@@ -1,7 +1,11 @@
 #include "motor_control_scheduler.h"
+#include "modules/config/mode_config.h"
 #include "modules/safety/heartbeat_monitor.h"
 #include "modules/safety/safety_task.h"
 #include "modules/servo_control/servo_manager.h"
+#if OPERATION_MODE == MODE_TELEOPERATION
+#include "modules/modes/teleoperation/teleoperation_handler.h"
+#endif
 #include "motor_controller.h"
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -126,6 +130,11 @@ void MotorControlScheduler::controlLoop() {
 
   // 3. Servo Manager: PWM updates + watchdog
   ServoManager::instance().checkWatchdog();
+
+#if OPERATION_MODE == MODE_TELEOPERATION
+  // 3b. Teleoperation pipeline: periodic follower telemetry feedback
+  TeleoperationHandler::update();
+#endif
 
   // 4. Heartbeat Monitor: Check timeout (low priority check)
   // (Already updated in SafetyTask, but can do additional logging here)

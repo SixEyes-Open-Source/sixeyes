@@ -22,6 +22,12 @@ public:
   static void init();
 
   /**
+   * Periodic teleoperation update (called from control loop scheduler)
+   * Handles telemetry stream timing and emission.
+   */
+  static void update();
+
+  /**
    * Route a teleoperation command to the appropriate handler
    *
    * @param cmd Command name
