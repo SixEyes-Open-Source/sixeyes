@@ -7,6 +7,7 @@ An open-source, in-progress robotics platform for a 6-degree-of-freedom arm, spa
 - 📘 **Getting Started**: Read [Complete Documentation Index](docs/README.md#quick-start)
 - 🚀 **Deploy Firmware**: [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
 - 🔌 **Build Hardware**: [Wiring & Assembly Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
+- 🧩 **Pinout Matrix**: [Dual-Controller Pinout & Wiring Matrix](docs/hardware/DUAL_CONTROLLER_PINOUT_MATRIX.md)
 -  **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
 - 🎮 **Teleoperation Architecture**: [Dual-Mode Firmware Plan](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 - ✅ **Validate Hardware**: [Hardware Validation Procedures](docs/hardware/HARDWARE_VALIDATION.md)

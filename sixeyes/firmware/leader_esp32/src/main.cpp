@@ -11,8 +11,8 @@ constexpr uint32_t STREAM_PERIOD_MS = 1000 / STREAM_HZ;
 constexpr size_t NUM_JOINTS = 6;
 constexpr uint16_t ADC_MAX = 4095;
 
-// ESP32 DevKit ADC pins for 6 joint channels.
-constexpr uint8_t JOINT_ADC_PINS[NUM_JOINTS] = {32, 33, 34, 35, 36, 39};
+// Leader ADC pins for 6 joint channels (Technical Reference 2).
+constexpr uint8_t JOINT_ADC_PINS[NUM_JOINTS] = {1, 2, 3, 4, 5, 6};
 
 uint32_t sequence = 0;
 uint32_t last_stream_ms = 0;

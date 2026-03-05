@@ -112,7 +112,7 @@ Object:   "config": {"param1": 1.0, "param2": 2.0}
 | Type | Direction | Purpose | Status |
 |:-----|:----------|:--------|:-------|
 | `JOINT_STATE` | Leader ESP32 → Laptop/Follower | Stream leader joint angles + valid mask | ✅ Implemented in `leader_esp32` |
-| `TELEMETRY_STATE` | Follower ESP32 → Laptop/Leader | Stream follower feedback for sync/analysis | 🔲 Planned |
+| `TELEMETRY_STATE` | Follower ESP32 → Laptop/Leader | Stream real follower feedback for sync/analysis | ✅ Implemented in `follower_esp32` |
 
 ---
 
@@ -149,19 +149,51 @@ These messages are used for the teleoperation pipeline and data collection flow.
 
 **Purpose**: Return follower state during teleoperation (for sync, logging, model training).
 
-**Status**: Planned for follower teleoperation Phase 2 completion.
+**Status**: Implemented in follower teleoperation pipeline.
 
-**Proposed format**:
+**Current format**:
 ```json
 {
   "cmd": "TELEMETRY_STATE",
   "seq": 42,
   "ts": 1000500,
   "follower_joints": [0.0, 45.0, 89.5, 134.2, 90.0, 91.2],
+  "follower_joint_velocities": [3.1, 5.4, 4.8, 0.0, 0.0, 0.0],
   "errors": [0.0, 0.2, 0.5, 0.8, 0.0, 1.2],
-  "faults": [0, 0, 0, 0, 0, 0]
+  "faults": [0, 0, 0, 0, 0, 0],
+  "valid_mask": [1, 1, 1, 1, 1, 1],
+  "motor_positions_deg": [0.0, 1125.0, -1125.0, 2240.0],
+  "motor_velocities_deg_s": [80.0, 92.0, -92.0, 77.0],
+  "motor_errors_deg": [1.0, -2.0, 2.0, 1.5],
+  "motor_currents_ma": [850, 900, 900, 870],
+  "motors_en": 1,
+  "fault_code": 0,
+  "homing": 0,
+  "telemetry_rate_hz": 100
 }
 ```
+
+**Fields**:
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `follower_joints` | float[6] | Follower joint state in teleoperation joint space (base, shoulder, elbow, wrist pitch, wrist yaw, gripper) |
+| `follower_joint_velocities` | float[6] | Estimated joint velocities in teleoperation joint space (deg/s) |
+| `errors` | float[6] | Leader-minus-follower joint error (deg) for each teleop joint |
+| `faults` | uint8[6] | Per-joint fault indicator (global/system + input validity aware) |
+| `valid_mask` | uint8[6] | Echo of most recent leader validity mask (`1` valid, `0` invalid) |
+| `motor_positions_deg` | float[4] | Raw stepper motor shaft positions (deg) |
+| `motor_velocities_deg_s` | float[4] | Raw stepper motor shaft velocities (deg/s) |
+| `motor_errors_deg` | float[4] | Raw motor target-tracking errors (deg) |
+| `motor_currents_ma` | uint16[4] | Configured/diagnostic current values from TMC2209 driver path |
+| `motors_en` | uint8 | Motor enable state (`1` enabled, `0` disabled) |
+| `fault_code` | uint32 | Current fault code from `FaultManager` |
+| `homing` | uint8 | Homing state (`1` active, `0` idle) |
+| `telemetry_rate_hz` | uint16 | Active telemetry stream rate |
+
+**Emission behavior**:
+- Emitted immediately after valid `JOINT_STATE` commands.
+- Also emitted periodically from control loop at configured rate.
+- Controlled by `TELEMETRY_ENABLE` and `TELEMETRY_RATE` commands.
 
 ---
 
@@ -786,7 +818,7 @@ python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-fil
 Behavior:
 - Reads line-delimited JSON from leader serial.
 - Forwards validated `JOINT_STATE` payloads to follower serial.
-- Receives `TELEMETRY_STATE` from follower in parallel.
+- Receives `TELEMETRY_STATE` from follower in parallel (joint + motor feedback payload).
 - Drops malformed packets and tracks counters.
 - Optionally writes both directions to JSONL for dataset collection.
 
