@@ -11,6 +11,7 @@ Protocol:
 Usage:
   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
   python teleoperation_bridge.py --leader-port /dev/ttyUSB0 --follower-port /dev/ttyUSB1 --log-file teleop.jsonl
+    python validate_teleop_log.py --input teleop.jsonl
 """
 
 import argparse
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import Optional, TextIO
 
 import serial
+from teleop_log_schema import SCHEMA_VERSION, validate_log_record
 
 
 @dataclass
@@ -42,6 +44,8 @@ class BridgeStats:
     last_leader_ts_ms: Optional[int] = None
     last_rx_monotonic_s: Optional[float] = None
     last_interarrival_ms: Optional[float] = None
+    log_records_written: int = 0
+    log_records_rejected: int = 0
 
 
 class TeleoperationBridge:
@@ -51,11 +55,13 @@ class TeleoperationBridge:
         follower_port: str,
         baudrate: int = 115200,
         log_file: Optional[str] = None,
+        schema_strict: bool = True,
     ):
         self.leader_port = leader_port
         self.follower_port = follower_port
         self.baudrate = baudrate
         self.log_file_path = Path(log_file) if log_file else None
+        self.schema_strict = schema_strict
 
         self.leader_serial: Optional[serial.Serial] = None
         self.follower_serial: Optional[serial.Serial] = None
@@ -129,6 +135,7 @@ class TeleoperationBridge:
             print(f"[INFO] Follower serial connected: {self.follower_port} @ {self.baudrate}")
             if self.log_file_path:
                 print(f"[INFO] Logging forwarded packets to: {self.log_file_path}")
+                print(f"[INFO] Log schema version: {SCHEMA_VERSION} (strict={self.schema_strict})")
             return True
 
         except serial.SerialException as error:
@@ -206,8 +213,7 @@ class TeleoperationBridge:
                         "direction": "leader_to_follower",
                         "payload": payload,
                     }
-                    self.log_handle.write(json.dumps(log_record) + "\n")
-                    self.log_handle.flush()
+                    self._log_record(log_record)
 
             except serial.SerialException as error:
                 print(f"[ERROR] Serial forwarding failed: {error}")
@@ -243,8 +249,7 @@ class TeleoperationBridge:
                         "direction": "follower_to_laptop",
                         "payload": payload,
                     }
-                    self.log_handle.write(json.dumps(log_record) + "\n")
-                    self.log_handle.flush()
+                    self._log_record(log_record)
 
             except serial.SerialException as error:
                 print(f"[ERROR] Telemetry receive failed: {error}")
@@ -268,6 +273,27 @@ class TeleoperationBridge:
             self.stats.telemetry_in += 1
 
         return payload
+
+    def _log_record(self, record: dict) -> None:
+        if not self.log_handle:
+            return
+
+        schema_errors = validate_log_record(record)
+        if schema_errors:
+            with self.lock:
+                self.stats.log_records_rejected += 1
+
+            if self.schema_strict:
+                print(f"[WARN] Dropping invalid log record: {'; '.join(schema_errors)}")
+                return
+
+            record = dict(record)
+            record["schema_errors"] = schema_errors
+
+        self.log_handle.write(json.dumps(record) + "\n")
+        self.log_handle.flush()
+        with self.lock:
+            self.stats.log_records_written += 1
 
     def _parse_and_validate(self, line: str) -> Optional[dict]:
         try:
@@ -313,6 +339,8 @@ class TeleoperationBridge:
             print(f"  Source latency avg/max (ms): {self.stats.source_latency_ms_avg:.2f} / {self.stats.source_latency_ms_max:.2f}")
             print(f"  Interarrival avg (ms): {self.stats.interarrival_ms_avg:.2f}")
             print(f"  Jitter avg (ms):   {self.stats.interarrival_jitter_ms_avg:.2f}")
+            print(f"  Log records written:  {self.stats.log_records_written}")
+            print(f"  Log records rejected: {self.stats.log_records_rejected}")
             print()
 
 
@@ -323,6 +351,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate (default: 115200)")
     parser.add_argument("--log-file", default=None, help="Optional JSONL output path for forwarded packets")
     parser.add_argument("--stats-interval", type=float, default=5.0, help="Stats print interval in seconds")
+
+    strict_group = parser.add_mutually_exclusive_group()
+    strict_group.add_argument(
+        "--schema-strict",
+        action="store_true",
+        default=True,
+        help="Drop invalid log records (default)",
+    )
+    strict_group.add_argument(
+        "--no-schema-strict",
+        action="store_false",
+        dest="schema_strict",
+        help="Keep invalid records and append schema_errors field",
+    )
+
     return parser
 
 
@@ -335,6 +378,7 @@ def main() -> int:
         follower_port=args.follower_port,
         baudrate=args.baud,
         log_file=args.log_file,
+        schema_strict=args.schema_strict,
     )
 
     if not bridge.connect():
