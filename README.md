@@ -36,7 +36,7 @@ An open-source, in-progress robotics platform for a 6-degree-of-freedom arm, spa
 ┌──────────────▼──────────────────┐
 │  Hardware (SixEyes Robot)       │
 │  • 4× NEMA23 steppers (24V)     │
-│  • 3× MG996R servos (6V)        │
+│  • 3× MG996R servos (6.6V rail) │
 │  • USB-CDC telemetry            │
 └─────────────────────────────────┘
 ```
@@ -210,19 +210,32 @@ cd sixeyes/firmware/follower_esp32
    pio device monitor
    ```
 
-6. **Run laptop bridge (Phase 3) with dataset capture**:
+6. **Capture leader pot home pose as zero (in leader monitor)**:
+   ```text
+   HOME_ZERO
+   ```
+   Or JSON form:
+   ```json
+   {"cmd":"CAPTURE_ZERO"}
+   ```
+   Expected monitor response:
+   ```text
+   [CAL] Leader pot zero captured from current pose
+   ```
+
+7. **Run laptop bridge (Phase 3) with dataset capture**:
    ```bash
    cd sixeyes/tools
    python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-file logs/teleop_session.jsonl
    ```
 
-7. **Validate captured JSONL against schema**:
+8. **Validate captured JSONL against schema**:
    ```bash
    cd sixeyes/tools
    python validate_teleop_log.py --input logs/teleop_session.jsonl
    ```
 
-8. **Run operator workflow helper (optional, follower commands + heartbeat)**:
+9. **Run operator workflow helper (optional, follower commands + heartbeat)**:
    ```bash
    cd sixeyes/tools
    python operator_control.py --port COM6 teleop-ready
@@ -267,7 +280,7 @@ cd sixeyes/firmware/follower_esp32
 | **Controller** | ESP32-S3 (240 MHz dual-core, 320 KB RAM) |
 | **Control Loop** | 400 Hz FreeRTOS deterministic timing |
 | **Steppers** | 4× NEMA23 (24V, 2.8A nominal) via TMC2209 |
-| **Servos** | 3× MG996R (6V, 0.17 sec/60°) |
+| **Servos** | 3× MG996R (6.6V rail, 0.17 sec/60°) |
 | **Communication** | USB-CDC + heartbeat protocol (50+ Hz) |
 | **Safety Timeout** | 500 ms heartbeat detection + <2.5 ms motor disable |
 | **Memory Usage** | 6.1% RAM, 10% Flash |

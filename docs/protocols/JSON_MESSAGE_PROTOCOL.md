@@ -145,6 +145,20 @@ These messages are used for the teleoperation pipeline and data collection flow.
 | `leader_joints` | float[6] | Leader joint angles (degrees) |
 | `valid_mask` | uint8[6] | Per-joint validity (`1` valid, `0` invalid/disconnected) |
 
+### Leader Local Calibration Commands (USB-CDC)
+
+These commands are consumed by `leader_esp32` over its own USB serial console and are used to set potentiometer home/zero before teleoperation runs.
+
+| Command | Accepted Forms | Effect |
+|:--------|:---------------|:-------|
+| `HOME_ZERO` | `HOME_ZERO` or `{"cmd":"HOME_ZERO"}` | Captures current pot pose as the zero offset |
+| `CAPTURE_ZERO` | `CAPTURE_ZERO` or `{"cmd":"CAPTURE_ZERO"}` | Alias for zero capture (same behavior as `HOME_ZERO`) |
+
+Notes:
+- Offsets are applied to outgoing `JOINT_STATE.leader_joints`.
+- Offsets are runtime-only (reboot clears them).
+- Success log line: `[CAL] Leader pot zero captured from current pose`.
+
 ### TELEMETRY_STATE - Follower Telemetry Streaming
 
 **Purpose**: Return follower state during teleoperation (for sync, logging, model training).

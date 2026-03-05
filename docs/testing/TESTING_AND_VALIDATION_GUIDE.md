@@ -313,7 +313,7 @@ Once tests pass on desktop, validate with real hardware.
 #### Pre-Test Hardware Checklist
 
 - [ ] Hardware assembly complete (see WIRING_AND_ASSEMBLY.md)
-- [ ] Power supplies verified (24V, 6V, 3.3V)
+- [ ] Power rails verified (24V input, 6.6V XL4016 output, 3.3V MP1584 output)
 - [ ] No visible solder bridges
 - [ ] All connectors fully seated
 - [ ] USB cable works (test on known device)
