@@ -734,7 +734,7 @@ pio run --target upload --upload-speed 115200
 # Solution 3: Check board
 #   - Measure 3.3V on board: should be ~3.3V
 #   - Check USB power: at least 500mA available
-#   - If USB bus powered, add external 5V PSU
+#   - Verify stable 24V input and onboard buck outputs if instability persists
 ```
 
 #### Error: "Hash Mismatch" or "CRC Error"

@@ -147,13 +147,13 @@ Notes:
 - Common GND required
 
 
-Servos (6V Rail):
+Servos (6.6V Rail):
 
 Wrist Pitch -> GPIO35
 Wrist Yaw   -> GPIO36
 Gripper     -> GPIO37
 
-- Powered from 6V buck
+- Powered from 6.6V buck
 - Common ground with MCU
 - Separate high-current trace routing
 
@@ -168,42 +168,17 @@ TX (Leader RX) -> GPIO39
 3.4 USB Architecture (Major Update)
 ------------------------------------------------------------
 
-Integrated USB Hub on Follower PCB
+Camera and follower are connected directly to laptop via separate USB links.
 
 Architecture:
-- ESP32-S3 (Native USB)
-- ESP32-S3-CAM (Native USB)
-- Additional USB-A Port 1 (Camera Expansion)
-- Additional USB-A Port 2 (Future Device)
-
-All connected to onboard USB 2.0 Hub IC
-Single upstream USB-C connection to laptop
-
-
-Hub Layout Concept:
-
-Upstream:
-- USB-C connector
-- ESD protection
-- 90Ω differential routing
-- Hub upstream port
-
-Downstream Ports:
-- ESP32-S3
-- ESP32-S3-CAM
-- USB-A Port 1
-- USB-A Port 2
-
+- Follower ESP32-S3 uses native USB-CDC for command/telemetry
+- Camera streams directly to laptop (not routed via follower PCB)
+- No onboard USB hub in the current architecture
 
 Design Rules:
-- Keep D+ / D− matched length
-- 90Ω differential impedance
-- Hub powered from 5V rail
-- Proper decoupling on hub IC
-- Separate analog ground stitching near USB
-
-No data connection between S3 and S3-CAM internally.
-Both enumerate independently on laptop.
+- Keep each USB cable path short and reliable
+- Maintain clean grounding and ESD protection at connectors
+- Avoid coupling high-current motor wiring with USB data paths
 
 
 ------------------------------------------------------------
@@ -220,21 +195,16 @@ Rail Breakdown:
 - TMC2209 VM
 - Direct motor supply
 
-6V Rail (Buck Converter):
+6.6V Rail (Buck Converter):
 - MG996R servos
 - Large bulk capacitance near servo headers
 - Separate current return routing to reduce noise injection
 
 3.3V Rail (Buck Converter):
 - ESP32-S3 (Follower)
-- ESP32-S3-CAM
+- ESP32-S3 (Leader, if powered from follower board)
 - TMC2209 VIO
 - Pull-ups / logic
-
-5V Rail (USB Domain):
-- USB hub IC
-- USB VBUS to downstream devices
-- Generated via buck from 24V or derived from regulated source
 
 
 Grounding Strategy:
@@ -372,8 +342,8 @@ PROJECT SIX EYES is now:
 - 3× MG996R
 - Dual shoulder steppers
 - ESP32-S3-WROOM-1 (both boards)
-- Integrated USB hub with expansion ports
-- 24V / 6V / 3.3V / 5V power architecture
+- Direct USB camera-to-laptop architecture (no follower PCB hub)
+- 24V / 6.6V / 3.3V power architecture
 - ROS2 laptop intelligence
 - Deterministic embedded control
 - Safety-first design

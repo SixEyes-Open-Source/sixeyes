@@ -512,11 +512,10 @@ Recommended power budget:
   ├─ Peak spike: ~3 A (brief, <1 sec)
   └─ 6.6V rail path must handle 3A continuous at minimum
 
-If using battery:
-  ├─ 4× AA holder (6V): ~2.5A capacity typical
-  │  (runs ~1 hour under continuous use)
-  ├─ USB power bank (5V): Insufficient (servo needs 6V)
-  └─ LiPo 2S (7.2V): TOO HIGH (damages servo)
+If using a temporary external servo source for bench checks:
+  ├─ Regulated bench supply set to 6.6V (current-limited)
+  ├─ Verify polarity and rail stability before connecting servos
+  └─ Keep the same common-ground star-point strategy
 
 RECOMMENDED: onboard XL4016 6.6V rail fed from stable 24V input
 ```
@@ -635,7 +634,7 @@ Single reference point (STAR):
   
         24V PSU GND ──┐
                       ├──→ STAR POINT (central node)
-        6V PSU GND ───┤
+        6.6V rail GND ─┤
                       │
         USB GND ──────┘
 
@@ -676,7 +675,7 @@ WIRE SELECTION:
 ════════════════
 
 24V stepper GND: 12 AWG (3.3mm²) or thicker
-6V servo GND:    12 AWG (3.3mm²) or thicker
+6.6V servo GND:  12 AWG (3.3mm²) or thicker
 3.3V logic GND:  16 AWG (1.3mm²) acceptable
 UART signal:     22 AWG (0.3mm²) standard
 
@@ -726,7 +725,7 @@ But: Proper PSU with bulk caps usually sufficient.
 - [ ] CPU and driver boards don't touch (no shorts)
 - [ ] No loose wires dangling near power rails
 - [ ] All capacitors oriented correctly (stripe = negative)
-- [ ] Fuses rating correct (10A for 24V, 5A for 6V)
+- [ ] Fuses rating correct (10A for 24V input, 5A for 6.6V rail)
 
 ### Power-On Sequence
 
@@ -742,10 +741,10 @@ But: Proper PSU with bulk caps usually sufficient.
    - [ ] Measure: 24V ± 0.5V at TMC2209 VDD pins
    - [ ] Measure: 0V at all GND (no offset)
 
-3. **Add 6V Servo Power**:
+3. **Verify 6.6V Servo Rail (XL4016)**:
    - [ ] Servos should initialize to 90° (neutral)
    - [ ] No servo jerks or movement
-   - [ ] Measure: 6V ± 0.3V at servo VCC pins
+  - [ ] Measure: 6.6V ± 0.3V at servo VCC pins
    - [ ] Current draw: ~100 mA idle (3 servos)
 
 ### Communication Verification
@@ -845,9 +844,9 @@ But: Proper PSU with bulk caps usually sufficient.
 
 **Root Causes**:
 1. **Power supply sagging**:
-   - Measure 6V rail under load
-   - Should stay 5.8V-6.2V
-   - If drops below 5.5V: PSU too weak or wires too thin
+  - Measure 6.6V rail under load
+  - Should stay approximately 6.3V-6.9V
+  - If it drops significantly below target: check 24V source, XL4016 settings, and wiring
 
 2. **Noise coupling from stepper PWM**:
    - PWM switching noise affects servo signal
@@ -938,9 +937,9 @@ But: Proper PSU with bulk caps usually sufficient.
 ### Power Wiring Jumper
 
 ```
-24V PSU (+):      12 AWG (THICK) ──→ TMC2209 VDD & capacitor
-6V PSU (+):       16 AWG (MEDIUM) ──→ Servo VCC & capacitor  
-USB 5V:            16 AWG (MEDIUM) ──→ ESP32 USB port
+24V PSU (+):       12 AWG (THICK) ──→ Main input bus (TMC2209 VM + onboard bucks)
+6.6V rail (+):     16 AWG (MEDIUM) ──→ Servo VCC & capacitor  
+3.3V rail:         PCB-distributed ──→ ESP32/TMC2209 logic domain
 
 STAR GROUND:       12 AWG (THICK) ────┬─→ ESP32 GND
 (all come here)                        ├─→ All TMC2209 GND
@@ -966,9 +965,9 @@ GPIO37  = Servo 2 PWM
 ### Power Consumption Budget
 
 ```
-Idle (no motors):          ~500 mA @ 5V USB
-Smooth motion (1 stepper):  ~1.5 A @ 24V + 300 mA @ 6V
-Peak (all steppers + servos): ~6 A @ 24V + 3 A @ 6V
+Idle (no motors):             low current on 24V input (logic + idle rails)
+Smooth motion (1 stepper):    ~1.5 A @ 24V + servo rail dynamic current
+Peak (all steppers + servos): ~6 A @ 24V + ~3 A on 6.6V servo rail path
 ```
 
 ---
