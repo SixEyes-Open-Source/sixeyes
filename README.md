@@ -210,13 +210,19 @@ cd sixeyes/firmware/follower_esp32
    pio device monitor
    ```
 
-6. **Run laptop bridge (Phase 3)**:
+6. **Run laptop bridge (Phase 3) with dataset capture**:
    ```bash
    cd sixeyes/tools
-   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
+   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-file logs/teleop_session.jsonl
    ```
 
-7. **Run operator workflow helper (optional, follower commands + heartbeat)**:
+7. **Validate captured JSONL against schema**:
+   ```bash
+   cd sixeyes/tools
+   python validate_teleop_log.py --input logs/teleop_session.jsonl
+   ```
+
+8. **Run operator workflow helper (optional, follower commands + heartbeat)**:
    ```bash
    cd sixeyes/tools
    python operator_control.py --port COM6 teleop-ready
@@ -376,7 +382,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Firmware Core (VLA) | ✅ Stable | Follower control loop + safety heartbeat |
-| Firmware Core (Teleop) | 🚧 In Progress | Leader stream + bridge + follower telemetry stub |
+| Firmware Core (Teleop) | ✅ Active | Leader stream + bridge + follower telemetry + schema-validated logging |
 | Documentation | ✅ Active | Dual-mode docs updated; ongoing refinements |
 | Unit Tests | 🟡 Partial | Existing tests pass; teleop path tests still needed |
 | CI/CD Pipeline | ✅ Complete | 3 GitHub Actions workflows |
@@ -386,11 +392,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## Current TODO (High Priority)
 
-1. Implement full teleoperation follower pipeline (replace telemetry stub with real joint/motor feedback)
-2. Add automated integration test for `leader_esp32` → bridge → `follower_esp32`
-3. Expand ROS2 workspace teleoperation nodes (`joint_state_node`, `usb_bridge_node`) for end-to-end runtime
-4. Add dataset logging workflow and schema validation for teleoperation captures
-5. Finalize hardware bring-up checklist for dual-controller (leader + follower) setups
+1. Add automated integration test for `leader_esp32` → bridge → `follower_esp32`
+2. Expand ROS2 workspace teleoperation nodes (`joint_state_node`, `usb_bridge_node`) for end-to-end runtime
+3. Finalize hardware bring-up checklist for dual-controller (leader + follower) setups
 
 ## Performance Metrics
 
