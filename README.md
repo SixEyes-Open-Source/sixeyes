@@ -7,6 +7,7 @@ An open-source, in-progress robotics platform for a 6-degree-of-freedom arm, spa
 - 📘 **Getting Started**: Read [Complete Documentation Index](docs/README.md#quick-start)
 - 🚀 **Deploy Firmware**: [Flashing & Deployment Guide](docs/deployment/FLASHING_AND_DEPLOYMENT.md)
 - 🔌 **Build Hardware**: [Wiring & Assembly Guide](docs/hardware/WIRING_AND_ASSEMBLY.md)
+- 🧩 **Pinout Matrix**: [Dual-Controller Pinout & Wiring Matrix](docs/hardware/DUAL_CONTROLLER_PINOUT_MATRIX.md)
 -  **System Architecture**: [Visual Architecture Guide](docs/firmware/VISUAL_ARCHITECTURE_GUIDE.md)
 - 🎮 **Teleoperation Architecture**: [Dual-Mode Firmware Plan](docs/firmware/TELEOPERATION_MODE_ARCHITECTURE.md)
 - ✅ **Validate Hardware**: [Hardware Validation Procedures](docs/hardware/HARDWARE_VALIDATION.md)
@@ -35,7 +36,7 @@ An open-source, in-progress robotics platform for a 6-degree-of-freedom arm, spa
 ┌──────────────▼──────────────────┐
 │  Hardware (SixEyes Robot)       │
 │  • 4× NEMA23 steppers (24V)     │
-│  • 3× MG996R servos (6V)        │
+│  • 3× MG996R servos (6.6V rail) │
 │  • USB-CDC telemetry            │
 └─────────────────────────────────┘
 ```
@@ -209,13 +210,32 @@ cd sixeyes/firmware/follower_esp32
    pio device monitor
    ```
 
-6. **Run laptop bridge (Phase 3)**:
-   ```bash
-   cd sixeyes/tools
-   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6
+6. **Capture leader pot home pose as zero (in leader monitor)**:
+   ```text
+   HOME_ZERO
+   ```
+   Or JSON form:
+   ```json
+   {"cmd":"CAPTURE_ZERO"}
+   ```
+   Expected monitor response:
+   ```text
+   [CAL] Leader pot zero captured from current pose
    ```
 
-7. **Run operator workflow helper (optional, follower commands + heartbeat)**:
+7. **Run laptop bridge (Phase 3) with dataset capture**:
+   ```bash
+   cd sixeyes/tools
+   python teleoperation_bridge.py --leader-port COM5 --follower-port COM6 --log-file logs/teleop_session.jsonl
+   ```
+
+8. **Validate captured JSONL against schema**:
+   ```bash
+   cd sixeyes/tools
+   python validate_teleop_log.py --input logs/teleop_session.jsonl
+   ```
+
+9. **Run operator workflow helper (optional, follower commands + heartbeat)**:
    ```bash
    cd sixeyes/tools
    python operator_control.py --port COM6 teleop-ready
@@ -260,7 +280,7 @@ cd sixeyes/firmware/follower_esp32
 | **Controller** | ESP32-S3 (240 MHz dual-core, 320 KB RAM) |
 | **Control Loop** | 400 Hz FreeRTOS deterministic timing |
 | **Steppers** | 4× NEMA23 (24V, 2.8A nominal) via TMC2209 |
-| **Servos** | 3× MG996R (6V, 0.17 sec/60°) |
+| **Servos** | 3× MG996R (6.6V rail, 0.17 sec/60°) |
 | **Communication** | USB-CDC + heartbeat protocol (50+ Hz) |
 | **Safety Timeout** | 500 ms heartbeat detection + <2.5 ms motor disable |
 | **Memory Usage** | 6.1% RAM, 10% Flash |
@@ -375,7 +395,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Firmware Core (VLA) | ✅ Stable | Follower control loop + safety heartbeat |
-| Firmware Core (Teleop) | 🚧 In Progress | Leader stream + bridge + follower telemetry stub |
+| Firmware Core (Teleop) | ✅ Active | Leader stream + bridge + follower telemetry + schema-validated logging |
 | Documentation | ✅ Active | Dual-mode docs updated; ongoing refinements |
 | Unit Tests | 🟡 Partial | Existing tests pass; teleop path tests still needed |
 | CI/CD Pipeline | ✅ Complete | 3 GitHub Actions workflows |
@@ -385,11 +405,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## Current TODO (High Priority)
 
-1. Implement full teleoperation follower pipeline (replace telemetry stub with real joint/motor feedback)
-2. Add automated integration test for `leader_esp32` → bridge → `follower_esp32`
-3. Expand ROS2 workspace teleoperation nodes (`joint_state_node`, `usb_bridge_node`) for end-to-end runtime
-4. Add dataset logging workflow and schema validation for teleoperation captures
-5. Finalize hardware bring-up checklist for dual-controller (leader + follower) setups
+1. Add automated integration test for `leader_esp32` → bridge → `follower_esp32`
+2. Expand ROS2 workspace teleoperation nodes (`joint_state_node`, `usb_bridge_node`) for end-to-end runtime
+3. Finalize hardware bring-up checklist for dual-controller (leader + follower) setups
 
 ## Performance Metrics
 

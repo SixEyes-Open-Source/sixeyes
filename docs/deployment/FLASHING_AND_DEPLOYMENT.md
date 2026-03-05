@@ -548,13 +548,13 @@ Expected: [SafetyTask] EN pin HIGH - motors enabled
 5. Stepper drivers should activate (no motion yet, just enable)
 ```
 
-#### Step 3: Add 6V Servo Power
+#### Step 3: Verify Onboard 6.6V/3.3V Rails
 
 ```
-1. Plug in 6V PSU
-2. Servos initialize to 90° position (neutral, safe)
-3. Measure voltage at servo VCC: should be 6V ± 0.3V
-4. Current idle: ~100 mA for all 3 servos
+1. Keep 24V input connected (onboard bucks derive low-voltage rails)
+2. Measure voltage at servo VCC: should be 6.6V ± 0.3V (XL4016 output)
+3. Measure logic rail near ESP32/TMC2209 VIO: should be 3.3V ± 0.1V (MP1584 output)
+4. Servos initialize to neutral/safe position
 5. Ready for controlled testing
 ```
 
@@ -734,7 +734,7 @@ pio run --target upload --upload-speed 115200
 # Solution 3: Check board
 #   - Measure 3.3V on board: should be ~3.3V
 #   - Check USB power: at least 500mA available
-#   - If USB bus powered, add external 5V PSU
+#   - Verify stable 24V input and onboard buck outputs if instability persists
 ```
 
 #### Error: "Hash Mismatch" or "CRC Error"
@@ -888,7 +888,8 @@ SixEyes Firmware v1.0.0 - Release Notes
 ## Hardware Requirements
 - ESP32-S3-WROOM-1 (or compatible)
 - 24V PSU (6A minimum)
-- 6V PSU (3A minimum)
+- Onboard XL4016 6.6V servo buck (from 24V input)
+- Onboard MP1584 3.3V logic buck (from 24V input)
 - TMC2209 stepper drivers (×4)
 - MG996R servo motors (×3)
 
@@ -1025,7 +1026,7 @@ git push origin v1.0.1
 - [ ] Memory usage < 50%: ✓ (currently 6.1% RAM, 10% Flash)
 - [ ] All modules initialized: `[Module] Initialized` in serial output
 - [ ] Control loop running: `Initialization complete; control loop running`
-- [ ] Hardware powered up correctly (24V, 6V, 3.3V)
+- [ ] Hardware powered up correctly (24V input, 6.6V rail, 3.3V rail)
 - [ ] Serial monitor shows status packets: `SB:0,1,1`
 - [ ] Manual heartbeat test works: `echo "HB:0,0"` enables motors
 - [ ] Motors respond to heartbeat (EN pin toggles)

@@ -1,6 +1,6 @@
 # SixEyes Wiring & Hardware Assembly Guide
 
-Complete reference for physically integrating the ESP32-S3 controller with motors, servos, and power supplies.
+Complete reference for physically integrating the ESP32-S3 controllers with motors, servos, and the onboard power architecture.
 
 For dual-mode operation, hardware can be deployed in two configurations:
 - **VLA Inference**: follower controller only
@@ -73,22 +73,25 @@ Leader ESP32 (joint sensors) --USB--> Laptop Bridge --USB--> Follower ESP32-S3
   - Note: PDN pin selects device on shared UART
 
 ### Servo Motors
-- **3× MG996R servos** (digital, 6V, 0.17 sec/60°)
+- **3× MG996R servos** (digital, 6.6V rail, 0.17 sec/60°)
   - Wrist pitch (5-force)
   - Wrist yaw
   - Gripper control
   - **Connectors**: 3-pin header (GND, VCC, PWM)
 
-### Power Supplies
-- **24V 150W PSU** (stepper power, 6A capable)
+### Power Architecture
+- **24V 150W PSU input** (main rail, 6A capable)
   - Commonly found 24V industrial supplies
   - Must support 4× NEMA23 @ 1.5A each (6A total)
   - With barrel connector or terminal blocks
-  
-- **6V 20W PSU** (servo power, 3A capable)
-  - Can use 6V regulator from 12V or 24V
-  - Alternative: 4× AA battery holder (6V nominal)
-  - Or: USB power bank (5V → 6V via LDO)
+
+- **XL4016 buck converter on PCB** (servo rail)
+  - Converts 24V input to 6.6V servo rail
+  - Designed for high-current servo load
+
+- **MP1584 buck converter on PCB** (logic rail)
+  - Converts 24V input to 3.3V logic rail
+  - Powers ESP32 logic + TMC2209 VIO domain
   
 - **USB Cable** (for ESP32 power + programming)
   - Standard USB 3.0 A → micro-B or USB-C
@@ -97,7 +100,7 @@ Leader ESP32 (joint sensors) --USB--> Laptop Bridge --USB--> Follower ESP32-S3
 ### Wiring & Components
 - **Wire gauge**:
   - 24V stepper bus: **12 AWG** (3mm²) minimum
-  - 6V servo bus: **16 AWG** (1mm²) acceptable
+  - 6.6V servo bus: **16 AWG** (1mm²) acceptable
   - 3.3V logic: **20 AWG** (0.5mm²)
   - Stepper UART: **22 AWG** (0.3mm²)
   
@@ -109,12 +112,12 @@ Leader ESP32 (joint sensors) --USB--> Laptop Bridge --USB--> Follower ESP32-S3
   
 - **Capacitors**:
   - **1000µF/35V** electrolytic (24V bulk, surge protection)
-  - **100µF/16V** electrolytic (6V bulk)
+  - **1000µF/16V** electrolytic (6.6V servo rail bulk, near headers)
   - **100nF/16V** ceramic (bypass, near ESP32 VCC)
   
 - **Other**:
   - Resistors: 100k/100k divider for battery voltage sensing (optional)
-  - Fuses: 10A for 24V stepper bus, 5A for 6V servo bus (optional but recommended)
+  - Fuses: 10A for 24V input bus, 5A for 6.6V servo rail (optional but recommended)
   - Breadboard or custom PCB for distribution point
   - Wire strippers, soldering iron, solder (60/40 Sn/Pb or lead-free)
 
@@ -257,34 +260,35 @@ STEPPER MOTORS:
   Connected via stepper drivers (not direct to bus)
 
 
-6V SERVO BUS (3A max)
-═════════════════════
+6.6V SERVO BUS (XL4016, ~3A design target)
+═══════════════════════════════════════════
 
-    6V PSU (or regulated from 24V)
-    +6V ─────┬─── Filter Capacitor (100µF/16V) ────┬─→ Power Bus
-             │                                      │
-             ├─ Wire (16 AWG acceptable) ─ ─ ─ ──→ Distribution Point
-             │
-             └─ Return GND ── ═════════════════════ ─ ─ ─ ─ → GND Bus
+    24V Input Bus
+      │
+      └─→ XL4016 Buck (on PCB) ──→ 6.6V Servo Bus
+                                   │
+                                   ├─ Filter Capacitor (≥1000µF/16V)
+                                   ├─ Wire (16 AWG acceptable) → Servo Headers
+                                   └─ Return GND → Common Star Ground
 
-From Distribution Point → Servo Connectors:
-  • VCC pin: 6V (±0.5V acceptable)
+From Servo Bus → Servo Connectors:
+  • VCC pin: 6.6V (target ±0.3V)
   • GND pin: Ground return (common star point)
 
 SERVOS:
-  3× MG996R @ 1A each = 3A max bus current
-  Direct connection from power axis to servo
+  3× MG996R class @ up to ~1A each (load-dependent)
 
 
-3.3V LOGIC SUPPLY (500mA, USB-powered)
-═══════════════════════════════════════
+3.3V LOGIC SUPPLY (MP1584 on PCB)
+══════════════════════════════════
 
-Via USB Port:
-  USB 5V → LDO (common on ESP32 dev boards) → 3.3V
-  
+    24V Input Bus
+      │
+      └─→ MP1584 Buck (on PCB) ──→ 3.3V Logic Rail
+
 Filter:
-  • 470µF bulk capacitor (after LDO)
-  • 100nF bypass cap (directly at ESP32 VCC pin)
+  • ≥22µF input + ≥22µF output at converter
+  • 100nF bypass caps near MCU/logic loads
 
 LOGIC SIGNALS:
   All GPIO: 3.3V
@@ -297,7 +301,7 @@ EXTERNAL CONNECTION BLOCK (Ground Star Point)
 
         24V PSU GND ──┐
                       ├─→ STAR POINT (chassis/PCB ground)
-        6V PSU GND ───┤
+        6.6V rail GND ─┤
                       │
         USB GND ──────┤
                       │
@@ -314,9 +318,9 @@ EXTERNAL CONNECTION BLOCK (Ground Star Point)
 
 | Supply | Voltage | Current | Wire Gauge | Connector | Notes |
 |:-------|:-------:|:-------:|:----------:|:---------:|:------|
-| Stepper | 24V | 6A | 12 AWG (3mm²) | 5.5×2.1mm barrel | Must support 4× NEMA23 |
-| Servo | 6V | 3A | 16 AWG (1mm²) | Terminal block | Can regfulate from 24V |
-| Logic | 3.3V | 500mA | 20 AWG (0.5mm²) | Micro-USB | Via LDO on board |
+| Main Input | 24V | 6A | 12 AWG (3mm²) | 5.5×2.1mm barrel | Feeds TMC2209 VM + onboard bucks |
+| Servo Rail | 6.6V | 3A | 16 AWG (1mm²) | Terminal block | From onboard XL4016 buck |
+| Logic Rail | 3.3V | 500mA+ | 20 AWG (0.5mm²) | PCB internal rail | From onboard MP1584 buck |
 
 ---
 
@@ -451,18 +455,18 @@ ASSEMBLY FOR 3 SERVOS:
 ═══════════════════════
 
 Servo 0 (Pitch):
-  GND ─→ 6V Power Bus GND
-  VCC ─→ 6V Power Bus +6V
+  GND ─→ 6.6V Power Bus GND
+  VCC ─→ 6.6V Power Bus +6.6V
   PWM ─→ GPIO35 (LEDC channel 0)
 
 Servo 1 (Yaw):
-  GND ─→ 6V Power Bus GND
-  VCC ─→ 6V Power Bus +6V
+  GND ─→ 6.6V Power Bus GND
+  VCC ─→ 6.6V Power Bus +6.6V
   PWM ─→ GPIO36 (LEDC channel 1)
 
 Servo 2 (Gripper):
-  GND ─→ 6V Power Bus GND
-  VCC ─→ 6V Power Bus +6V
+  GND ─→ 6.6V Power Bus GND
+  VCC ─→ 6.6V Power Bus +6.6V
   PWM ─→ GPIO37 (LEDC channel 2)
 
 POWER-UP SEQUENCE:
@@ -491,10 +495,10 @@ SAFETY CRITICAL:
 VOLTAGE SAFETY:
 ════════════════
 
-MG996R rated: 4.8-6V
-  ├─ 4.8V (2×AA): Slow, weak torque
-  ├─ 6.0V (4×AA or PSU): NOMINAL OPERATING POINT ✓
-  └─ 7.2V (2S LiPo): Too high! ⚠ Will damage servo
+Servo rail target for this PCB revision: 6.6V (from XL4016)
+  ├─ Verify servo rail before plugging servos
+  ├─ Use neutral startup pose and current-limited bring-up
+  └─ Keep bulk capacitance near servo headers (≥1000µF)
 
 CURRENT SPIKE PROTECTION:
 ═════════════════════════
@@ -506,15 +510,14 @@ Recommended power budget:
   ├─ Normal operation: ~100 mA idle + load
   ├─ Smooth motion: ~300 mA continuous
   ├─ Peak spike: ~3 A (brief, <1 sec)
-  └─ 6V PSU must handle 3A continuous at minimum
+  └─ 6.6V rail path must handle 3A continuous at minimum
 
-If using battery:
-  ├─ 4× AA holder (6V): ~2.5A capacity typical
-  │  (runs ~1 hour under continuous use)
-  ├─ USB power bank (5V): Insufficient (servo needs 6V)
-  └─ LiPo 2S (7.2V): TOO HIGH (damages servo)
+If using a temporary external servo source for bench checks:
+  ├─ Regulated bench supply set to 6.6V (current-limited)
+  ├─ Verify polarity and rail stability before connecting servos
+  └─ Keep the same common-ground star-point strategy
 
-RECOMMENDED: 6V 3A dedicated PSU (cheapest, most reliable)
+RECOMMENDED: onboard XL4016 6.6V rail fed from stable 24V input
 ```
 
 ---
@@ -631,7 +634,7 @@ Single reference point (STAR):
   
         24V PSU GND ──┐
                       ├──→ STAR POINT (central node)
-        6V PSU GND ───┤
+        6.6V rail GND ─┤
                       │
         USB GND ──────┘
 
@@ -672,7 +675,7 @@ WIRE SELECTION:
 ════════════════
 
 24V stepper GND: 12 AWG (3.3mm²) or thicker
-6V servo GND:    12 AWG (3.3mm²) or thicker
+6.6V servo GND:  12 AWG (3.3mm²) or thicker
 3.3V logic GND:  16 AWG (1.3mm²) acceptable
 UART signal:     22 AWG (0.3mm²) standard
 
@@ -722,7 +725,7 @@ But: Proper PSU with bulk caps usually sufficient.
 - [ ] CPU and driver boards don't touch (no shorts)
 - [ ] No loose wires dangling near power rails
 - [ ] All capacitors oriented correctly (stripe = negative)
-- [ ] Fuses rating correct (10A for 24V, 5A for 6V)
+- [ ] Fuses rating correct (10A for 24V input, 5A for 6.6V rail)
 
 ### Power-On Sequence
 
@@ -738,10 +741,10 @@ But: Proper PSU with bulk caps usually sufficient.
    - [ ] Measure: 24V ± 0.5V at TMC2209 VDD pins
    - [ ] Measure: 0V at all GND (no offset)
 
-3. **Add 6V Servo Power**:
+3. **Verify 6.6V Servo Rail (XL4016)**:
    - [ ] Servos should initialize to 90° (neutral)
    - [ ] No servo jerks or movement
-   - [ ] Measure: 6V ± 0.3V at servo VCC pins
+  - [ ] Measure: 6.6V ± 0.3V at servo VCC pins
    - [ ] Current draw: ~100 mA idle (3 servos)
 
 ### Communication Verification
@@ -841,9 +844,9 @@ But: Proper PSU with bulk caps usually sufficient.
 
 **Root Causes**:
 1. **Power supply sagging**:
-   - Measure 6V rail under load
-   - Should stay 5.8V-6.2V
-   - If drops below 5.5V: PSU too weak or wires too thin
+  - Measure 6.6V rail under load
+  - Should stay approximately 6.3V-6.9V
+  - If it drops significantly below target: check 24V source, XL4016 settings, and wiring
 
 2. **Noise coupling from stepper PWM**:
    - PWM switching noise affects servo signal
@@ -934,9 +937,9 @@ But: Proper PSU with bulk caps usually sufficient.
 ### Power Wiring Jumper
 
 ```
-24V PSU (+):      12 AWG (THICK) ──→ TMC2209 VDD & capacitor
-6V PSU (+):       16 AWG (MEDIUM) ──→ Servo VCC & capacitor  
-USB 5V:            16 AWG (MEDIUM) ──→ ESP32 USB port
+24V PSU (+):       12 AWG (THICK) ──→ Main input bus (TMC2209 VM + onboard bucks)
+6.6V rail (+):     16 AWG (MEDIUM) ──→ Servo VCC & capacitor  
+3.3V rail:         PCB-distributed ──→ ESP32/TMC2209 logic domain
 
 STAR GROUND:       12 AWG (THICK) ────┬─→ ESP32 GND
 (all come here)                        ├─→ All TMC2209 GND
@@ -962,9 +965,9 @@ GPIO37  = Servo 2 PWM
 ### Power Consumption Budget
 
 ```
-Idle (no motors):          ~500 mA @ 5V USB
-Smooth motion (1 stepper):  ~1.5 A @ 24V + 300 mA @ 6V
-Peak (all steppers + servos): ~6 A @ 24V + 3 A @ 6V
+Idle (no motors):             low current on 24V input (logic + idle rails)
+Smooth motion (1 stepper):    ~1.5 A @ 24V + servo rail dynamic current
+Peak (all steppers + servos): ~6 A @ 24V + ~3 A on 6.6V servo rail path
 ```
 
 ---

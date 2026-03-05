@@ -37,7 +37,7 @@ UartLeader &UartLeader::instance() {
 UartLeader::UartLeader() {}
 
 void UartLeader::init(unsigned long baud) {
-  Serial1.begin(baud);
+  Serial1.begin(baud, SERIAL_8N1, LEADER_UART_RX_PIN, LEADER_UART_TX_PIN);
   Serial.println("UartLeader: Serial1 started");
 }
 

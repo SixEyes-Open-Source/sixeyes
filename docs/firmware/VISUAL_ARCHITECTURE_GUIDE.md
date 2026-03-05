@@ -228,7 +228,7 @@ Cycle 80  (200 ms)     │ SB:0,1,1        │ TX window opened
 │  │   1500 µs → 90° (neutral/safe power-up)                  │  │
 │  │   2500 µs → 180°                                          │  │
 │  │                                                            │  │
-│  │ Power: 6V, 1A per servo                                   │  │
+│  │ Power: 6.6V rail (XL4016), ~1A per servo                 │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                   │
 │  COMMUNICATION & DIAGNOSTICS                                    │
@@ -276,22 +276,22 @@ Cycle 80  (200 ms)     │ SB:0,1,1        │ TX window opened
 │         ├─► TMC2209 Driver 3       │  SHARED STEPPER BUS        │
 │         └─► TMC2209 Driver 4 ─────┘  (GPIO EN pin disables all) │
 │                                                                   │
-│  6V Servo Power (3× MG996R @ 1A each, total 3A max)             │
+│  6.6V Servo Power (XL4016 buck, 3× MG996R @ 1A each, 3A max)   │
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━──►  │
-│      6V PSU (20W minimum, power bank acceptable)                 │
+│      Derived from 24V main input via onboard XL4016              │
 │         │                                                         │
 │         ├─ Gauge wire (16-18AWG)                                │
-│         ├─ 100µF electrolytic cap                               │
+│         ├─ ≥1000µF electrolytic cap near servo headers          │
 │         │                                                         │
 │         ├─► MG996R Pitch servo (GPIO35 PWM)                     │
 │         ├─► MG996R Yaw servo (GPIO36 PWM)                       │
 │         └─► MG996R Gripper (GPIO37 PWM)                         │
 │                                                                   │
-│  3.3V Logic / ESP32-S3 (USB-powered, 500mA)                     │
+│  3.3V Logic / ESP32-S3 (MP1584 buck from 24V input)             │
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━──►  │
-│      USB 5V input → 3.3V LDO (common on dev boards)             │
+│      24V input → MP1584 buck → 3.3V logic rail                  │
 │         │                                                         │
-│         ├─ 470µF bulk cap                                        │
+│         ├─ ≥22µF input/output converter caps                     │
 │         ├─ 100nF bypass cap (near MCU)                          │
 │         │                                                         │
 │         └─► ESP32-S3 & GPIO logic circuits                      │
@@ -300,7 +300,7 @@ Cycle 80  (200 ms)     │ SB:0,1,1        │ TX window opened
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━──►  │
 │      Single: 24V PSU GND ──┐                                     │
 │                             ├─→ Central GND Point (PCB/chassis)  │
-│      Single: 6V PSU GND ──┘                                     │
+│      Single: 6.6V rail GND ─┤                                    │
 │      Single: USB GND ──────┘                                    │
 │                                                                   │
 │      From central GND point:                                     │
@@ -902,7 +902,7 @@ Compilation notes:
 | **Stepper Drivers** | 4× TMC2209 via UART |
 | **Servo Motors** | 3× MG996R via LEDC PWM |
 | **Communication** | USB-CDC (ASCII protocol) |
-| **Power Supply** | 24V (steppers) + 6V (servos) |
+| **Power Supply** | 24V input + onboard 6.6V (XL4016) + 3.3V (MP1584) |
 | **Safety Mechanism** | Dual heartbeat + fault latch |
 | **OS** | FreeRTOS on core 0 @ 240 MHz |
 

@@ -32,7 +32,8 @@ Complete reference for hardware bring-up testing, validation, and qualification 
 
 - [ ] **Power Supply Checks**
   - 24V PSU: Output 24V ± 1V under full load (6A)
-  - 6V PSU: Output 6V ± 0.3V under full load (3A)
+  - 6.6V servo rail (XL4016): Output 6.6V ± 0.3V under load
+  - 3.3V logic rail (MP1584): Output 3.3V ± 0.1V under load
   - No reverse polarity (check with multimeter)
   - All capacitors present and correct voltage rating
   - No solder bridges visible under magnification
@@ -191,7 +192,7 @@ Observe: [SafetyTask] EN pin HIGH (response received)
 
 **Procedure**:
 ```
-1. Monitor EN pin with oscilloscope (5V logic level)
+1. Monitor EN pin with oscilloscope (3.3V logic level)
 2. Send commands:
    
    # Enable motors
@@ -304,7 +305,7 @@ Connect GPIO pin to:
 **Objective**: Verify servo position tracking
 
 **Hardware Setup**:
-- Connect 6V PSU to servos
+- Verify 6.6V rail from onboard XL4016 is present at servo headers
 - Attach visual target (e.g., printed degree scale)
 
 **Procedure**:

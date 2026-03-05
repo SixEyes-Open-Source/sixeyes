@@ -90,6 +90,16 @@ Navigation guide for SixEyes firmware, ROS2, teleoperation, and hardware documen
   - Power distribution strategy (star grounding)
   - Grounding and noise management
 
+#### [Dual-Controller Pinout & Wiring Matrix](hardware/DUAL_CONTROLLER_PINOUT_MATRIX.md)
+- **Contents**: Consolidated pin map for both ESP32-S3 boards, 4× TMC2209 channels, servos, UART links, and power rails
+- **Best For**: Fast verification of inter-board wiring and GPIO assignments against Technical Reference 2
+- **Read Time**: 8 minutes
+- **Key Sections**:
+  - Leader ADC and UART pin mapping
+  - Follower TMC2209 + servo pin mapping
+  - Inter-board UART cross-link table
+  - Power rail distribution and grounding rules
+
 #### [Hardware Validation](hardware/HARDWARE_VALIDATION.md)
 - **Contents**: Testing procedures, validation checklists, troubleshooting
 - **Best For**: Verifying hardware is correctly assembled

@@ -59,6 +59,16 @@ This system currently targets:
 | Servo Channels | 3 |
 | Primary Host Link | USB-CDC Serial |
 
+### 3.1 Power Architecture (PCB Revision)
+
+| Rail | Source | Primary Loads |
+|:-----|:-------|:--------------|
+| 24V | Main DC input (≥10A recommended system budget) | TMC2209 VM + onboard buck converters |
+| 6.6V | XL4016 buck on follower PCB | Servo power rail (wrist pitch/yaw + gripper) |
+| 3.3V | MP1584 buck on follower PCB | ESP32 logic, TMC2209 VIO, digital/UART logic |
+
+Grounding model: common star-point grounding near main power entry; servo return currents isolated from quiet logic ground paths.
+
 ---
 
 ## 4) Operating Modes
