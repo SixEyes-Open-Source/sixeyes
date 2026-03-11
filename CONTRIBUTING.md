@@ -23,4 +23,4 @@ Submitting a PR
 - Reference any issues and include testing steps in the PR description.
 
 Contact
-- For safety questions, open an issue with the `safety` label and ping maintainers.
+- For safety questions, open an issue with the `safety` label or email **sixeyesopensource@gmail.com**.

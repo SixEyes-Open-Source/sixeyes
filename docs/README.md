@@ -210,7 +210,6 @@ Navigation guide for SixEyes firmware, ROS2, teleoperation, and hardware documen
 - **Best For**: Looking up chip specifications, pinouts, electrical specs
 - **Files**:
   - `FIRMWARE_SYSTEM_DATASHEET.md` - Firmware-level system datasheet (interfaces, limits, safety behavior, maturity)
-  - `tmc2209_datasheet_rev1.09.pdf` - TMC2209 stepper driver specifications
   - `SixEyes Technical Reference.txt` - Hardware technical specifications
 
 ---

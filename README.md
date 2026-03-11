@@ -428,11 +428,11 @@ This project is licensed under the [LICENSE](LICENSE) file.
 ## Contact & Support
 
 For issues, questions, or contributions:
-- 📧 Email: [project-email]
-- 🐛 Issues: [GitHub Issues]
-- 💬 Discussions: [GitHub Discussions]
+- 📧 Email: sixeyesopensource@gmail.com
+- 🐛 Issues: https://github.com/SixEyes-Open-Source/sixeyes/issues
+- 💬 Discussions: https://github.com/SixEyes-Open-Source/sixeyes/discussions
 
 ---
 
-**Last Updated**: February 2026  
+**Last Updated**: March 2026  
 **Latest Version**: Check [Releases](https://github.com/SixEyes-Open-Source/sixeyes/releases)

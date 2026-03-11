@@ -9,15 +9,17 @@ Repository layout (top-level):
 ```
 sixeyes/
 ├── firmware/
+│   ├── camera_esp32s3/
 │   ├── follower_esp32/
 │   └── leader_esp32/
-├── ros2_ws/src/
+├── ros2_ws/
+│   └── src/
 ├── simulation/
-├── cad/
-├── electronics/
+├── hardware_assets/
+│   ├── 3d_print_stl/
+│   └── pcb_schematic_gerber/
 ├── docs/
-├── data/
-└── scripts/
+└── tools/
 ```
 
 See `docs/` for the safety checklist and build instructions.
